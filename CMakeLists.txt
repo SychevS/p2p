@@ -34,12 +34,14 @@ add_library(${PROJECT_NAME} STATIC
   src/serialization.h
   src/serialization.cc
   src/types.h
-  src/udp.h)
+  src/udp.h
+  src/third-party/UPnP.h
+  src/third-party/UPnP.cpp)
 
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging
+target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging libminiupnpc-static
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
