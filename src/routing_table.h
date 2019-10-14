@@ -32,6 +32,8 @@ class RoutingTable : public UdpSocketEventHandler {
                RoutingTableEventHandler& host);
   ~RoutingTable();
 
+  void AddNode(const NodeEntrance&);
+
   bool HasNode(const NodeId&, NodeEntrance&);
   void StartFindNode(const NodeId&);
 

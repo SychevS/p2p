@@ -24,6 +24,10 @@ RoutingTable::~RoutingTable() {
   delete []k_buckets_;
 }
 
+void RoutingTable::AddNode(const NodeEntrance& node) {
+  UpdateKBuckets(node);
+}
+
 bool RoutingTable::HasNode(const NodeId& id, NodeEntrance& result) {
   Guard g(k_bucket_mux_);
   return k_buckets_[KBucketIndex(id)].Get(id, result);
