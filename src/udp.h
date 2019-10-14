@@ -34,7 +34,7 @@ class UdpSocketEventHandler {
 };
 
 template <size_t MaxDatagramSize>
-class UdpSocket : std::enable_shared_from_this<UdpSocket<MaxDatagramSize>> {
+class UdpSocket : public std::enable_shared_from_this<UdpSocket<MaxDatagramSize>> {
  public:
   static_assert(MaxDatagramSize < 65507, "UDP datagrams cannot be larger than 65507 bytes");
 
