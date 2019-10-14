@@ -25,7 +25,8 @@ add_library(${PROJECT_NAME} STATIC
   src/common.h
   src/serialization.h
   src/serialization.cc
-  src/types.h)
+  src/types.h
+  src/udp.h)
 
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
