@@ -23,6 +23,8 @@ find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
   src/common.h
+  src/kademlia_datagram.h
+  src/kademlia_datagram.cc
   src/k_bucket.h
   src/serialization.h
   src/serialization.cc
