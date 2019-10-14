@@ -17,3 +17,21 @@ else()
 endif()
 
 add_subdirectory(third-party)
+
+find_package(Boost 1.66 REQUIRED COMPONENTS system)
+find_package(Threads)
+
+add_library(${PROJECT_NAME} STATIC
+  src/types.h)
+
+target_include_directories(${PROJECT_NAME} INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils
+  ${CMAKE_THREAD_LIBS_INIT})
+
+if(NOT MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unknown-pragmas -pedantic)
+else()
+  target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+endif()
