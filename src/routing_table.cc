@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <future>
 
+#include "log.h"
 #include "routing_table.h"
 
 namespace net {
@@ -37,6 +38,7 @@ void RoutingTable::StartFindNode(const NodeId& id) {
   Guard g(find_node_mux_);
   auto& nodes_to_query = find_node_sent_[id];
   if (nodes_to_query.size() != 0) {
+    LOG(DEBUG) << "Find node procedure has already been started for this node.";
     return;
   }
 
@@ -79,6 +81,8 @@ void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
   if (it != ping_sent_.end()) {
     ping_sent_.erase(it);
     UpdateKBuckets(d.node_from);
+  } else {
+    LOG(DEBUG) << "Unexpected ping response.";
   }
 }
 
@@ -97,6 +101,7 @@ void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
   auto& already_queried = find_node_sent_[find_node_resp.target];
   if (std::find(already_queried.begin(), already_queried.end(),
               find_node_resp.node_from.id) == already_queried.end()) {
+    LOG(DEBUG) << "Unexpected find node responce.";
     return;
   }
 

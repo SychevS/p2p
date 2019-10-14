@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "common.h"
+#include "log.h"
 #include "types.h"
 
 namespace net {
@@ -88,6 +89,8 @@ void UdpSocket<MaxDatagramSize>::Open() {
   try {
     socket_.bind(listen_ep_);
   } catch (std::exception& e) {
+    LOG(ERROR) << "Can't bind socket to port " << listen_ep_.port()
+               << ", reason " << e.what();
     started_.store(false);
     return;
   }
@@ -114,6 +117,8 @@ void UdpSocket<MaxDatagramSize>::StartRead() {
             }
 
             if (ec) {
+              LOG(ERROR) << "Receive of UDP datagram failed. " << ec.value()
+                         << ", " << ec.message();
             }
 
             if (len) {
@@ -153,6 +158,8 @@ void UdpSocket<MaxDatagramSize>::StartWrite() {
             }
 
             if (ec) {
+              LOG(ERROR) << "Send of UDP datagram failed. "
+                         << ec.value() << ", " << ec.message();
             }
 
             {

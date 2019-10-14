@@ -5,6 +5,7 @@
 #include <list>
 
 #include "common.h"
+#include "log.h"
 
 namespace net {
 
@@ -70,6 +71,7 @@ inline void KBucket::Evict(const NodeId& id) {
 
 inline NodeEntrance KBucket::LeastRecentlySeen() const noexcept {
   if (!nodes_.size()) {
+    LOG(ERROR) << "Try to get node from empty k-bucket";
     return NodeEntrance();
   }
   return nodes_.front();
