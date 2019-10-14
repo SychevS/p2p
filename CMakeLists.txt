@@ -37,7 +37,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils
-  ${CMAKE_THREAD_LIBS_INIT})
+  libminiupnpc-static ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unknown-pragmas -pedantic)
