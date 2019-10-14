@@ -1,2 +1,3 @@
 add_subdirectory(bitcoin_utils)
 add_subdirectory(miniupnp/miniupnpc)
+add_subdirectory(easyloggingpp)

@@ -27,6 +27,8 @@ add_library(${PROJECT_NAME} STATIC
   src/k_bucket.h
   src/kademlia_datagram.h
   src/kademlia_datagram.cc
+  src/log.h
+  src/log.cc
   src/routing_table.h
   src/routing_table.cc
   src/serialization.h
@@ -37,8 +39,8 @@ add_library(${PROJECT_NAME} STATIC
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils
-  libminiupnpc-static ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging
+  ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-unknown-pragmas -pedantic)
