@@ -22,6 +22,7 @@ find_package(Boost 1.66 REQUIRED COMPONENTS system)
 find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
+  src/common.h
   src/serialization.h
   src/serialization.cc
   src/types.h)
