@@ -13,10 +13,7 @@
 struct UPNPUrls;
 struct IGDdatas;
 
-namespace dev
-{
-namespace p2p
-{
+namespace net {
 
 class UPnP
 {
@@ -37,5 +34,4 @@ private:
 	std::shared_ptr<IGDdatas> m_data;
 };
 
-}
 }

@@ -2,6 +2,7 @@
 #define NET_COMMON_H
 
 #include <cinttypes>
+#include <set>
 #include <string>
 
 #include <arith_uint256.h>
@@ -40,6 +41,12 @@ bool IsPrivateAddress(const bi::address& address_to_check);
 bool IsPrivateAddress(const std::string& address_to_check);
 
 std::vector<NodeEntrance> GetDefaultBootNodes();
+
+// Return public endpoint of upnp interface.
+// If successful o_upnpifaddr will be a private interface address
+// and endpoint will contain public address and port.
+bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses, 
+                              uint16_t listen_port, bi::address& o_upnp_interface_addr);
 
 } // namespace net
 #endif // NET_COMMON_H

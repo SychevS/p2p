@@ -16,8 +16,7 @@
 #include "../utils/log.h"
 
 using namespace std;
-using namespace dev;
-using namespace dev::p2p;
+using namespace net;
 
 UPnP::UPnP()
 {

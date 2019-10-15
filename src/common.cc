@@ -1,5 +1,10 @@
 #include "common.h"
 
+#include <memory>
+
+#include "third-party/UPnP.h"
+#include "utils/log.h"
+
 namespace net {
 
 bool operator==(const NodeEntrance& lhs, const NodeEntrance& rhs) {
@@ -72,5 +77,50 @@ bool IsPrivateAddress(const std::string& address_to_check) {
 std::vector<NodeEntrance> GetDefaultBootNodes() {
   // @TODO provide a list of boot nodes
   return {};
+}
+
+bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
+                              uint16_t listen_port, bi::address& o_upnp_interface_addr) {
+  if (listen_port == 0) {
+    LOG(ERROR) << "Listen port cannot be equal to zero in nat traversal procedure";
+    return bi::tcp::endpoint();
+  }
+
+  std::unique_ptr<UPnP> upnp;
+  try {
+    upnp.reset(new UPnP);
+  } catch (...) {} // let m_upnp continue as null - we handle it properly.
+
+  bi::tcp::endpoint upnp_ep;
+
+  if (upnp && upnp->isValid()) {
+    bi::address p_addr;
+    int ext_port = 0;
+
+    for (auto const& addr: if_addresses) {
+      if (addr.is_v4()
+          && IsPrivateAddress(addr)
+          && (ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port))) {
+        p_addr = addr;
+        break;
+      }
+    }
+
+    auto e_ip = upnp->externalIP();
+    bi::address e_ip_addr(bi::make_address(e_ip));
+
+    if (ext_port && e_ip != std::string("0.0.0.0") && !IsPrivateAddress(e_ip_addr)) {
+      LOG(INFO) << "Punched through NAT and mapped local port " << listen_port << " onto external port " << ext_port << ".";
+      LOG(INFO) << "External addr: " << e_ip;
+      o_upnp_interface_addr = p_addr;
+      upnp_ep = bi::tcp::endpoint(e_ip_addr, (uint16_t)ext_port);
+    } else {
+      LOG(INFO) << "Couldn't punch through NAT (or no NAT in place).";
+    }
+  }
+
+  LOG(DEBUG) << "UPnP is not valid";
+
+  return upnp_ep;
 }
 } // namespace net
