@@ -10,7 +10,8 @@ RoutingTable::RoutingTable(ba::io_context& io,
                            const NodeEntrance& host_data,
                            RoutingTableEventHandler& host,
                            const std::vector<NodeEntrance>& bootstrap_nodes)
-    : socket_(UdpSocket<kMaxDatagramSize>::Create(io, host_data.udp_port,
+    : socket_(UdpSocket<kMaxDatagramSize>::Create(io,
+          bi::udp::endpoint(host_data.address, host_data.udp_port),
           static_cast<UdpSocketEventHandler&>(*this))),
       host_data_(host_data),
       host_(host),
@@ -20,6 +21,7 @@ RoutingTable::RoutingTable(ba::io_context& io,
   k_buckets_ = new KBucket[kBucketsNum];
 
   for (auto& n : bootstrap_nodes) {
+    if (n.id == host_data_.id) continue; // our node is bootstap one
     k_buckets_[KBucketIndex(n.id)].AddNode(n);
   }
   total_nodes_.store(bootstrap_nodes.size());
@@ -34,8 +36,12 @@ RoutingTable::~RoutingTable() {
   delete []k_buckets_;
 }
 
-void RoutingTable::AddNode(const NodeEntrance& node) {
-  UpdateKBuckets(node);
+void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
+  bool try_lookup = total_nodes_.load() == 0;
+  UpdateKBuckets(nodes);
+  if (try_lookup && total_nodes_.load() > 0) {
+    StartFindNode(host_data_.id);
+  }
 }
 
 bool RoutingTable::HasNode(const NodeId& id, NodeEntrance& result) {

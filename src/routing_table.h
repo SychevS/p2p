@@ -34,7 +34,8 @@ class RoutingTable : public UdpSocketEventHandler {
                const std::vector<NodeEntrance>& bootstrap_nodes);
   ~RoutingTable();
 
-  void AddNode(const NodeEntrance&);
+  // may be used instead of default bootstrap list
+  void AddNodes(const std::vector<NodeEntrance>&);
 
   bool HasNode(const NodeId&, NodeEntrance&);
   void StartFindNode(const NodeId&);

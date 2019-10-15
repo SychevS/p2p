@@ -2,6 +2,7 @@
 #define NET_HOST_H
 
 #include <memory>
+#include <vector>
 
 #include "common.h"
 #include "routing_table.h"
@@ -18,7 +19,10 @@ class Host : public RoutingTableEventHandler {
  public:
   Host(const NodeId&,
        uint16_t listen_port,
-       bool traverse_nat = true);
+       bool traverse_nat = true,
+       bool default_bootstrap = true);
+
+  void AddKnownNodes(const std::vector<NodeEntrance>&);
 
   void SendDirect(const NodeId& to, ByteVector&& msg);
   void SendBroadcast(ByteVector&& msg);
