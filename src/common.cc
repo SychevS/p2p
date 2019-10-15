@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "third-party/UPnP.h"
@@ -122,5 +123,18 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   LOG(DEBUG) << "UPnP is not valid";
 
   return upnp_ep;
+}
+
+std::string IdToString(const NodeId& id) {
+  const auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
+  return EncodeBase58(ptr, ptr + id.size());
+}
+
+NodeId IdFromString(const std::string& s) {
+  NodeId ret;
+  ByteVector v(ret.size(), 0);
+  DecodeBase58(s, v);
+  std::copy(v.begin(), v.end(), reinterpret_cast<uint8_t*>(ret.GetPtr()));
+  return ret;
 }
 } // namespace net

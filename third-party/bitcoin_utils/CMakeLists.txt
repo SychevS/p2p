@@ -4,6 +4,8 @@ project(bitcoin_utils)
 
 add_library(${PROJECT_NAME} STATIC
   arith_uint256.h
-  arith_uint256.cpp)
+  arith_uint256.cpp
+  base58.h
+  base58.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

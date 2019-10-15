@@ -6,6 +6,7 @@
 #include <string>
 
 #include <arith_uint256.h>
+#include <base58.h>
 
 #include "types.h"
 #include "utils/serialization.h"
@@ -47,6 +48,10 @@ std::vector<NodeEntrance> GetDefaultBootNodes();
 // and endpoint will contain public address and port.
 bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses, 
                               uint16_t listen_port, bi::address& o_upnp_interface_addr);
+
+std::string IdToString(const NodeId&);
+
+NodeId IdFromString(const std::string&);
 
 } // namespace net
 #endif // NET_COMMON_H
