@@ -42,7 +42,11 @@ class UdpSocket : public std::enable_shared_from_this<UdpSocket<MaxDatagramSize>
   using Ptr = std::shared_ptr<UdpSocket<MaxDatagramSize>>;
 
   static auto Create(ba::io_context& io, uint16_t port, UdpSocketEventHandler& host) {
-      return Ptr(new UdpSocket<MaxDatagramSize>(io, port, host));
+    return Ptr(new UdpSocket<MaxDatagramSize>(io, port, host));
+  }
+
+  static auto Create(ba::io_context& io, const bi::udp::endpoint& ep, UdpSocketEventHandler& host) {
+    return Ptr(new UdpSocket<MaxDatagramSize>(io, ep, host));
   }
 
   void Open();
@@ -55,6 +59,12 @@ class UdpSocket : public std::enable_shared_from_this<UdpSocket<MaxDatagramSize>
   void Close() { CloseWithError(ba::error::connection_reset); }
 
  private:
+  UdpSocket(ba::io_context& io, const bi::udp::endpoint& ep, UdpSocketEventHandler& host)
+      : listen_ep_(ep), socket_(io), host_(host) {
+    started_.store(false);
+    closed_.store(true);
+  }
+
   UdpSocket(ba::io_context& io, uint16_t port, UdpSocketEventHandler& host)
       : listen_ep_(bi::udp::v4(), port), socket_(io), host_(host) {
     started_.store(false);
