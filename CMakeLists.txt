@@ -25,6 +25,7 @@ add_library(${PROJECT_NAME} STATIC
   src/common.h
   src/common.cc
   src/host.h
+  src/host.cc
   src/k_bucket.h
   src/kademlia_datagram.h
   src/kademlia_datagram.cc

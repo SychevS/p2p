@@ -16,7 +16,9 @@ class HostEventHandler {
 
 class Host : public RoutingTableEventHandler {
  public:
-  Host(const NodeId&, bool traverse_nat = true);
+  Host(const NodeId&,
+       uint16_t listen_port,
+       bool traverse_nat = true);
 
   void SendDirect(const NodeId& to, ByteVector&& msg);
   void SendBroadcast(ByteVector&& msg);
@@ -25,6 +27,7 @@ class Host : public RoutingTableEventHandler {
 
  private:
   ba::io_context io_;
+  NodeEntrance my_contacts_;
   std::shared_ptr<RoutingTable> routing_table_;
 };
 
