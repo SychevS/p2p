@@ -28,8 +28,10 @@ class RoutingTableEventHandler {
 
 class RoutingTable : public UdpSocketEventHandler {
  public:
-  RoutingTable(ba::io_context& io, const NodeEntrance& host_data,
-               RoutingTableEventHandler& host);
+  RoutingTable(ba::io_context& io,
+               const NodeEntrance& host_data,
+               RoutingTableEventHandler& host,
+               const std::vector<NodeEntrance>& bootstrap_nodes);
   ~RoutingTable();
 
   void AddNode(const NodeEntrance&);

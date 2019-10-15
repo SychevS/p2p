@@ -6,8 +6,10 @@
 
 namespace net {
 
-RoutingTable::RoutingTable(ba::io_context& io, const NodeEntrance& host_data,
-    RoutingTableEventHandler& host)
+RoutingTable::RoutingTable(ba::io_context& io,
+                           const NodeEntrance& host_data,
+                           RoutingTableEventHandler& host,
+                           const std::vector<NodeEntrance>& bootstrap_nodes)
     : socket_(UdpSocket<kMaxDatagramSize>::Create(io, host_data.udp_port,
           static_cast<UdpSocketEventHandler&>(*this))),
       host_data_(host_data),
@@ -16,8 +18,15 @@ RoutingTable::RoutingTable(ba::io_context& io, const NodeEntrance& host_data,
       kBucketsNum(host_data.id.size() * 8) { // num of bits in NodeId
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];
-  k_buckets_[KBucketIndex(host_data_.id)].AddNode(host_data_);
-  total_nodes_.store(1);
+
+  for (auto& n : bootstrap_nodes) {
+    k_buckets_[KBucketIndex(n.id)].AddNode(n);
+  }
+  total_nodes_.store(bootstrap_nodes.size());
+
+  if (bootstrap_nodes.size()) {
+    StartFindNode(host_data_.id);
+  }
 }
 
 RoutingTable::~RoutingTable() {
