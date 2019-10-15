@@ -13,7 +13,7 @@
 #include <miniupnpc/miniupnpc.h>
 #include <miniupnpc/upnpcommands.h>
 
-#include "../log.h"
+#include "../utils/log.h"
 
 using namespace std;
 using namespace dev;

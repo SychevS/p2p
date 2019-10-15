@@ -6,8 +6,8 @@
 
 #include <arith_uint256.h>
 
-#include "serialization.h"
 #include "types.h"
+#include "utils/serialization.h"
 
 #include <boost/asio.hpp>
 

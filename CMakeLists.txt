@@ -24,19 +24,20 @@ find_package(Threads)
 add_library(${PROJECT_NAME} STATIC
   src/common.h
   src/common.cc
+  src/host.h
   src/k_bucket.h
   src/kademlia_datagram.h
   src/kademlia_datagram.cc
-  src/log.h
-  src/log.cc
   src/routing_table.h
   src/routing_table.cc
-  src/serialization.h
-  src/serialization.cc
   src/types.h
   src/udp.h
   src/third-party/UPnP.h
-  src/third-party/UPnP.cpp)
+  src/third-party/UPnP.cpp
+  src/utils/log.h
+  src/utils/log.cc
+  src/utils/serialization.h
+  src/utils/serialization.cc)
 
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
