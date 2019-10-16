@@ -17,8 +17,7 @@ class HostEventHandler {
 
 class Host : public RoutingTableEventHandler {
  public:
-  Host(const NodeId&,
-       uint16_t listen_port,
+  Host(const NodeEntrance&,
        bool traverse_nat = true,
        bool default_bootstrap = true);
 
@@ -28,6 +27,8 @@ class Host : public RoutingTableEventHandler {
   void SendBroadcast(ByteVector&& msg);
 
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
+
+  void Run();
 
  private:
   ba::io_context io_;

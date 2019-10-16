@@ -4,14 +4,18 @@
 
 namespace net {
 
-Host::Host(const NodeId& id, uint16_t listen_port, bool, bool default_bootstrap)
+Host::Host(const NodeEntrance& my_contacts, bool, bool default_bootstrap)
     : io_(2),
-      my_contacts_{id, bi::address(), listen_port, listen_port},
+      my_contacts_(my_contacts),
       routing_table_(
           std::make_shared<RoutingTable>(io_, my_contacts_,
               static_cast<RoutingTableEventHandler&>(*this),
               default_bootstrap ? GetDefaultBootNodes() : std::vector<NodeEntrance>{})) {
   InitLogger();
+}
+
+void Host::Run() {
+  io_.run();
 }
 
 void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
