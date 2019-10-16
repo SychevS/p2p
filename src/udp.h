@@ -147,7 +147,7 @@ bool UdpSocket<MaxDatagramSize>::Send(Datagram&& datagram) {
   Guard g(send_mux_);
   send_queue_.emplace_back(std::forward<Datagram>(datagram));
 
-  if (send_queue_.size()) {
+  if (send_queue_.size() == 1) {
     StartWrite();
   }
 
@@ -172,10 +172,8 @@ void UdpSocket<MaxDatagramSize>::StartWrite() {
                          << ec.value() << ", " << ec.message();
             }
 
-            {
-             Guard g(send_mux_);
-             send_queue_.pop_front();
-            }
+            Guard g(send_mux_);
+            send_queue_.pop_front();
 
             if (send_queue_.empty()) return;
 
