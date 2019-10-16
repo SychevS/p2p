@@ -95,6 +95,7 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   bi::tcp::endpoint upnp_ep;
 
   if (upnp && upnp->isValid()) {
+    LOG(INFO) << "Found valid UPnP device, try to punch through NAT.";
     bi::address p_addr;
     int ext_port = 0;
 
@@ -118,9 +119,9 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
     } else {
       LOG(INFO) << "Couldn't punch through NAT (or no NAT in place).";
     }
+  } else {
+    LOG(INFO) << "UPnP is not valid";
   }
-
-  LOG(DEBUG) << "UPnP is not valid";
 
   return upnp_ep;
 }
