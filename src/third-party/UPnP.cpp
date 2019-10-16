@@ -9,9 +9,9 @@
 #include <string.h>
 #include <exception>
 
-#include <miniupnpc/miniwget.h>
-#include <miniupnpc/miniupnpc.h>
-#include <miniupnpc/upnpcommands.h>
+#include "../../third-party/miniupnp/miniupnpc/miniwget.h"
+#include "../../third-party/miniupnp/miniupnpc/miniupnpc.h"
+#include "../../third-party/miniupnp/miniupnpc/upnpcommands.h"
 
 #include "../utils/log.h"
 
