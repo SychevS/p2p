@@ -35,6 +35,22 @@ struct NodeEntrance {
   bool GetId(Unserializer& u);
 };
 
+struct Config {
+  NodeEntrance my_contacts;
+  bool traverse_nat;
+  bool use_default_boot_nodes;
+  std::vector<NodeEntrance> custom_boot_nodes;
+
+  Config(const NodeEntrance& contacts,
+         bool traverse_nat,
+         bool use_default_boot_nodes,
+         const std::vector<NodeEntrance>& custom_boot_nodes)
+      : my_contacts(contacts),
+        traverse_nat(traverse_nat),
+        use_default_boot_nodes(use_default_boot_nodes),
+        custom_boot_nodes(custom_boot_nodes) {}
+};
+
 // Helper function to determine if an address falls within one of the reserved ranges
 // For V4:
 // Class A "10.*", Class B "172.[16->31].*", Class C "192.168.*"
@@ -50,7 +66,6 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
                               uint16_t listen_port, bi::address& o_upnp_interface_addr);
 
 std::string IdToBase58(const NodeId&);
-
 NodeId IdFromBase58(const std::string&);
 
 } // namespace net
