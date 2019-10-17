@@ -15,6 +15,9 @@
 
 namespace net {
 
+constexpr uint16_t kDefaultPort = 31392;
+constexpr const char* kLocalHost = "127.0.0.1";
+
 namespace ba = boost::asio;
 namespace bi = ba::ip;
 
@@ -36,18 +39,23 @@ struct NodeEntrance {
 };
 
 struct Config {
-  NodeEntrance my_contacts;
+  NodeId id;
+  std::string listen_address;
+  uint16_t listen_port;
+
   bool traverse_nat;
   bool use_default_boot_nodes;
   std::vector<NodeEntrance> custom_boot_nodes;
 
-  Config(const NodeEntrance& contacts,
-         bool traverse_nat,
-         bool use_default_boot_nodes,
+  Config(const NodeId& id)
+      : id(id), listen_address(kLocalHost), listen_port(kDefaultPort),
+        traverse_nat(true), use_default_boot_nodes(true) {}
+
+  Config(const NodeId& id, const std::string& listen_address,
+         uint16_t listen_port, bool traverse_nat, bool use_default_boot_nodes,
          const std::vector<NodeEntrance>& custom_boot_nodes)
-      : my_contacts(contacts),
-        traverse_nat(traverse_nat),
-        use_default_boot_nodes(use_default_boot_nodes),
+      : id(id), listen_address(listen_address), listen_port(listen_port),
+        traverse_nat(traverse_nat), use_default_boot_nodes(use_default_boot_nodes),
         custom_boot_nodes(custom_boot_nodes) {}
 };
 

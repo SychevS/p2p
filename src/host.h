@@ -25,18 +25,16 @@ class Host : public RoutingTableEventHandler {
   void SendBroadcast(ByteVector&& msg);
 
   void Run();
-  bool Ok() { return ok_; }
 
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
 
  private:
-  bool DeterminePublic();
+  void DeterminePublic();
 
   ba::io_context io_;
   const Config net_config_;
   NodeEntrance my_contacts_;
   std::shared_ptr<RoutingTable> routing_table_;
-  bool ok_;
 };
 
 } // namespace net
