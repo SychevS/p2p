@@ -1,5 +1,6 @@
 #include "host.h"
 
+#include "connection.h"
 #include "utils/log.h"
 
 namespace net {
@@ -7,6 +8,7 @@ namespace net {
 Host::Host(const Config& config)
     : io_(2),
       net_config_(config),
+      acceptor_(io_),
       routing_table_(nullptr) {
   InitLogger();
   DeterminePublic();
@@ -15,6 +17,7 @@ Host::Host(const Config& config)
       static_cast<RoutingTableEventHandler&>(*this),
       net_config_.use_default_boot_nodes ? GetDefaultBootNodes()
                                          : net_config_.custom_boot_nodes);
+  TcpListen();
 }
 
 void Host::Run() {
@@ -56,6 +59,33 @@ void Host::DeterminePublic() {
     }
   } else {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private.";
+  }
+}
+
+void Host::TcpListen() {
+  try {
+    bi::tcp::endpoint ep(my_contacts_.address, my_contacts_.tcp_port);
+    acceptor_.open(ep.protocol());
+    acceptor_.set_option(ba::socket_base::reuse_address(true));
+    acceptor_.bind(ep);
+    acceptor_.listen();
+  } catch (...) {
+    LOG(ERROR) << "Could not start listening on port " << my_contacts_.tcp_port << ".";
+  }
+
+  if (acceptor_.is_open()) {
+    LOG(INFO) << "Start listen on port " << my_contacts_.tcp_port;
+    StartAccept();
+  }
+}
+
+void Host::StartAccept() {
+  if (acceptor_.is_open()) {
+    acceptor_.async_accept([this](const boost::system::error_code& err, bi::tcp::socket sock) {
+              if (err || !acceptor_.is_open()) return;
+
+              auto new_conn = Connection::Create(std::move(sock));
+            });
   }
 }
 } // namespace net

@@ -30,9 +30,12 @@ class Host : public RoutingTableEventHandler {
 
  private:
   void DeterminePublic();
+  void TcpListen();
+  void StartAccept();
 
   ba::io_context io_;
   const Config net_config_;
+  bi::tcp::acceptor acceptor_;
   NodeEntrance my_contacts_;
   std::shared_ptr<RoutingTable> routing_table_;
 };
