@@ -65,6 +65,8 @@ struct Packet {
     kBroadcast = 1,
   };
 
+  constexpr static size_t kHeaderSize = 77;
+
   struct Header {
     Type type;
     size_t data_size;

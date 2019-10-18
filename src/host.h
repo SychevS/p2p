@@ -27,6 +27,7 @@ class Host : public RoutingTableEventHandler {
   void Run();
 
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
+  void OnPacketReceived(Packet&&);
 
  private:
   void DeterminePublic();

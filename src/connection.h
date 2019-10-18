@@ -38,7 +38,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   Host& host_;
   bi::tcp::socket socket_;
-  ByteVector data_;
+  Packet packet_;
 };
 
 } // namespace net

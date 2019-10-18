@@ -28,6 +28,10 @@ void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
 
 }
 
+void Host::OnPacketReceived(Packet&&) {
+
+}
+
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
   routing_table_->AddNodes(nodes);
 }
