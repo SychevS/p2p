@@ -59,6 +59,30 @@ struct Config {
         custom_boot_nodes(custom_boot_nodes) {}
 };
 
+struct Packet {
+  enum Type : uint8_t {
+    kDirect = 0,
+    kBroadcast = 1,
+  };
+
+  struct Header {
+    Type type;
+    size_t data_size;
+    NodeId sender;
+    NodeId receiver;
+    uint32_t packet_id;
+  };
+
+  void PutHeader(Serializer&) const;
+  bool GetHeader(Unserializer&);
+
+  void Put(Serializer&) const;
+  bool Get(Unserializer& u);
+
+  Header header;
+  ByteVector data;
+};
+
 // Helper function to determine if an address falls within one of the reserved ranges
 // For V4:
 // Class A "10.*", Class B "172.[16->31].*", Class C "192.168.*"

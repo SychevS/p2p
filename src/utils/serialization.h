@@ -25,7 +25,7 @@ class Serializer {
   }
 
   template<class Integer,
-           class = std::enable_if_t<std::is_integral<Integer>::value>>
+           class = std::enable_if_t<std::is_integral<Integer>::value || std::is_enum<Integer>::value>>
   void Put(Integer data) {
     auto ptr = reinterpret_cast<uint8_t*>(&data);
     buffer_.insert(buffer_.end(), ptr, ptr + sizeof(Integer));
@@ -59,7 +59,7 @@ class Unserializer {
   }
 
   template<class Integer,
-           class = std::enable_if_t<std::is_integral<Integer>::value>>
+           class = std::enable_if_t<std::is_integral<Integer>::value || std::is_enum<Integer>::value>>
   bool Get(Integer& integer) {
     if (size_ < sizeof(Integer)) return false;
 

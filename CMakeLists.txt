@@ -22,6 +22,8 @@ find_package(Boost 1.66 REQUIRED COMPONENTS system)
 find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
+  src/connection.h
+  src/connection.cc
   src/common.h
   src/common.cc
   src/host.h

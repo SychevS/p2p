@@ -40,6 +40,31 @@ bool NodeEntrance::GetId(Unserializer& u) {
   return u.Get(reinterpret_cast<uint8_t*>(id.GetPtr()), id.size());
 }
 
+void Packet::PutHeader(Serializer& s) const {
+  s.Put(header.type);
+  s.Put(header.data_size);
+  s.Put(reinterpret_cast<const uint8_t*>(header.sender.GetPtr()), header.sender.size());
+  s.Put(reinterpret_cast<const uint8_t*>(header.receiver.GetPtr()), header.receiver.size());
+  s.Put(header.packet_id);
+}
+
+void Packet::Put(Serializer& s) const {
+  PutHeader(s);
+  s.Put(data);
+}
+
+bool Packet::GetHeader(Unserializer& u) {
+  return u.Get(header.type) &&
+         u.Get(header.data_size) &&
+         u.Get(reinterpret_cast<uint8_t*>(header.sender.GetPtr()), header.sender.size()) &&
+         u.Get(reinterpret_cast<uint8_t*>(header.receiver.GetPtr()), header.receiver.size()) &&
+         u.Get(header.packet_id);
+}
+
+bool Packet::Get(Unserializer& u) {
+  return GetHeader(u) && u.Get(data);
+}
+
 bool IsPrivateAddress(const bi::address& address_to_check) {
   if (address_to_check.is_v4()) {
     bi::address_v4 v4_address = address_to_check.to_v4();

@@ -82,9 +82,21 @@ void Host::TcpListen() {
 void Host::StartAccept() {
   if (acceptor_.is_open()) {
     acceptor_.async_accept([this](const boost::system::error_code& err, bi::tcp::socket sock) {
-              if (err || !acceptor_.is_open()) return;
+              if (!acceptor_.is_open()) {
+                LOG(INFO) << "Cannot accept new connection, acceptor is not open.";
+                return;
+              }
 
-              auto new_conn = Connection::Create(std::move(sock));
+              if (err) {
+                LOG(ERROR) << "Cannot accept new connection, error occured. "
+                           << err.value() << ", " << err.message();
+                return;
+              }
+
+              auto new_conn = Connection::Create(*this, std::move(sock));
+              new_conn->StartRead();
+
+              StartAccept();
             });
   }
 }

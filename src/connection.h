@@ -7,16 +7,18 @@
 
 namespace net {
 
+class Host;
+
 class Connection : public std::enable_shared_from_this<Connection> {
  public:
   using Ptr = std::shared_ptr<Connection>;
 
-  static auto Create(ba::io_context& io) {
-    return Ptr(new Connection(io));
+  static auto Create(Host& h, ba::io_context& io) {
+    return Ptr(new Connection(h, io));
   }
 
-  static auto Create(bi::tcp::socket&& s) {
-    return Ptr(new Connection(std::move(s)));
+  static auto Create(Host& h, bi::tcp::socket&& s) {
+    return Ptr(new Connection(h, std::move(s)));
   }
 
   auto& Socket() { return socket_; }
@@ -25,19 +27,18 @@ class Connection : public std::enable_shared_from_this<Connection> {
     Close();
   }
 
-  void Close() {
-    try {
-      boost::system::error_code ec;
-      socket_.shutdown(bi::tcp::socket::shutdown_both, ec);
-      if (socket_.is_open()) socket_.close();
-    } catch (...) {}
-  }
+  void StartRead();
+  void Close();
 
  private:
-  Connection(ba::io_context& io) : socket_(io) {}
-  Connection(bi::tcp::socket&& s) : socket_(std::move(s)) {}
+  Connection(Host& h, ba::io_context& io)
+      : host_(h), socket_(io) {}
+  Connection(Host& h, bi::tcp::socket&& s)
+      : host_(h), socket_(std::move(s)) {}
 
+  Host& host_;
   bi::tcp::socket socket_;
+  ByteVector data_;
 };
 
 } // namespace net
