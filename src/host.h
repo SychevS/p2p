@@ -35,6 +35,9 @@ class Host : public RoutingTableEventHandler {
   void TcpListen();
   void StartAccept();
   void SendDirect(const NodeEntrance&, const ByteVector&);
+  void SendDirect(const NodeEntrance&, const Packet&);
+  bool IsDuplicate(Packet::Id);
+  void InsertNewBroadcastId(Packet::Id);
 
   ba::io_context io_;
   const Config net_config_;
@@ -43,9 +46,9 @@ class Host : public RoutingTableEventHandler {
   NodeEntrance my_contacts_;
   std::shared_ptr<RoutingTable> routing_table_;
 
-  Mutex broadcast_dup_mux_;
-  constexpr static size_t kMaxBroadcastDuplicates_ = 10000;
-  std::unordered_set<Packet::Id> broadcast_duplicates_;
+  Mutex broadcast_id_mux_;
+  constexpr static size_t kMaxBroadcastIds_ = 10000;
+  std::unordered_set<Packet::Id> broadcast_ids_;
 };
 
 } // namespace net

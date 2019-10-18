@@ -2,6 +2,7 @@
 
 #include "connection.h"
 #include "utils/log.h"
+#include "utils/murmurhash2.h"
 
 namespace net {
 
@@ -30,28 +31,32 @@ void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
-  if (packet.header.type & Packet::Type::kDirect) {
-    if (packet.header.receiver == my_contacts_.id) {
-      event_handler_.OnMessageReceived(
-              packet.header.sender, std::move(packet.data));
+  if ((packet.header.type & Packet::Type::kDirect) && packet.header.receiver == my_contacts_.id) {
+    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
+  } else if (!IsDuplicate(packet.header.packet_id)){
+    auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
+    for (const auto& n : nodes) {
+      SendDirect(n, packet.data);
     }
-  } else {
-    Guard g(broadcast_dup_mux_);
-    auto it = broadcast_duplicates_.find(packet.header.packet_id);
-
-    if (it == broadcast_duplicates_.end()) {
-      if (broadcast_duplicates_.size() == kMaxBroadcastDuplicates_) {
-        broadcast_duplicates_.erase(broadcast_duplicates_.begin());
-      }
-      broadcast_duplicates_.insert(packet.header.packet_id);
-
-      auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
-      for (const auto& n : nodes) {
-        SendDirect(n, packet.data);
-      }
-      event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-    }
+    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   }
+}
+
+bool Host::IsDuplicate(Packet::Id id) {
+  Guard g(broadcast_id_mux_);
+  auto it = broadcast_ids_.find(id);
+  if (it == broadcast_ids_.end()) {
+    InsertNewBroadcastId(id);
+    return false;
+  }
+  return true;
+}
+
+void Host::InsertNewBroadcastId(Packet::Id id) {
+  if (broadcast_ids_.size() == kMaxBroadcastIds_) {
+    broadcast_ids_.erase(broadcast_ids_.begin());
+  }
+  broadcast_ids_.insert(id);
 }
 
 void Host::SendDirect(const NodeId&, ByteVector&&) {
@@ -62,8 +67,25 @@ void Host::SendDirect(const NodeEntrance&, const ByteVector&) {
 
 }
 
-void Host::SendBroadcast(ByteVector&&) {
+void Host::SendDirect(const NodeEntrance&, const Packet&) {
 
+}
+
+void Host::SendBroadcast(ByteVector&& data) {
+  Packet packet;
+  packet.data = std::move(data);
+  packet.header.type = Packet::Type::kBroadcast;
+  packet.header.data_size = packet.data.size();
+  packet.header.sender = my_contacts_.id;
+  packet.header.packet_id = MurmurHash2(packet.data.data(), packet.data.size());
+  {
+    Guard g(broadcast_id_mux_);
+    InsertNewBroadcastId(packet.header.packet_id);
+  }
+  auto nodes = routing_table_->GetBroadcastList(my_contacts_.id);
+  for (const auto& n : nodes) {
+    SendDirect(n, packet);
+  }
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {

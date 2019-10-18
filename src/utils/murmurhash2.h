@@ -3,18 +3,16 @@
 
 namespace net {
 
-template<int N>
-uint32_t MurmurHash2(const uint8_t* key) {
+uint32_t MurmurHash2(const uint8_t* key, unsigned int len) {
   constexpr uint32_t m = 0x5bd1e995;
   constexpr uint32_t seed = 0;
   constexpr int r = 24;
 
-  unsigned int h = seed ^ N;
+  unsigned int h = seed ^ len;
 
   const uint8_t* data = key;
   unsigned int k;
 
-  size_t len = N;
   while (len >= 4) {
       k  = data[0];
       k |= data[1] << 8;
