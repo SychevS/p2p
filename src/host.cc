@@ -5,10 +5,11 @@
 
 namespace net {
 
-Host::Host(const Config& config)
+Host::Host(const Config& config, HostEventHandler& event_handler)
     : io_(2),
       net_config_(config),
       acceptor_(io_),
+      event_handler_(event_handler),
       routing_table_(nullptr) {
   InitLogger();
   DeterminePublic();
@@ -28,7 +29,40 @@ void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
 
 }
 
-void Host::OnPacketReceived(Packet&&) {
+void Host::OnPacketReceived(Packet&& packet) {
+  if (packet.header.type & Packet::Type::kDirect) {
+    if (packet.header.receiver == my_contacts_.id) {
+      event_handler_.OnMessageReceived(
+              packet.header.sender, std::move(packet.data));
+    }
+  } else {
+    Guard g(broadcast_dup_mux_);
+    auto it = broadcast_duplicates_.find(packet.header.packet_id);
+
+    if (it == broadcast_duplicates_.end()) {
+      if (broadcast_duplicates_.size() == kMaxBroadcastDuplicates_) {
+        broadcast_duplicates_.erase(broadcast_duplicates_.begin());
+      }
+      broadcast_duplicates_.insert(packet.header.packet_id);
+
+      auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
+      for (const auto& n : nodes) {
+        SendDirect(n, packet.data);
+      }
+      event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
+    }
+  }
+}
+
+void Host::SendDirect(const NodeId&, ByteVector&&) {
+
+}
+
+void Host::SendDirect(const NodeEntrance&, const ByteVector&) {
+
+}
+
+void Host::SendBroadcast(ByteVector&&) {
 
 }
 

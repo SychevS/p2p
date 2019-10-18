@@ -65,6 +65,7 @@ struct Packet {
     kBroadcast = 1,
   };
 
+  using Id = uint32_t;
   constexpr static size_t kHeaderSize = 77;
 
   struct Header {
@@ -72,7 +73,7 @@ struct Packet {
     size_t data_size;
     NodeId sender;
     NodeId receiver;
-    uint32_t packet_id;
+    Id packet_id;
   };
 
   void PutHeader(Serializer&) const;

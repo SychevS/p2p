@@ -40,6 +40,8 @@ class RoutingTable : public UdpSocketEventHandler {
   bool HasNode(const NodeId&, NodeEntrance&);
   void StartFindNode(const NodeId&);
 
+  std::vector<NodeEntrance> GetBroadcastList(const NodeId&) { return std::vector<NodeEntrance>{}; }
+
   static NodeId Distance(const NodeId&, const NodeId&);
 
   static constexpr uint16_t kMaxDatagramSize = 1000;
