@@ -167,7 +167,8 @@ void Host::DeterminePublic() {
       my_contacts_.tcp_port = public_ep.port();
     }
   } else {
-    LOG(INFO) << "Nat traversal disabled and IP address in config is private.";
+    LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
+              << my_contacts_.address;
   }
 }
 

@@ -142,7 +142,8 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
       o_upnp_interface_addr = p_addr;
       upnp_ep = bi::tcp::endpoint(e_ip_addr, (uint16_t)ext_port);
     } else {
-      LOG(INFO) << "Couldn't punch through NAT (or no NAT in place).";
+      LOG(INFO) << "Couldn't punch through NAT (or no NAT in place)."
+                << " UPnP returned address: " << e_ip_addr << ", port: " << ext_port;
     }
   } else {
     LOG(INFO) << "UPnP is not valid";

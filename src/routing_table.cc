@@ -68,6 +68,7 @@ void RoutingTable::StartFindNode(const NodeId& id) {
 std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_from) {
   std::vector<NodeEntrance> ret;
   uint16_t index = KBucketIndex(received_from);
+  if (!index) index = kBucketsNum;
   uint16_t mask = 0x8000;
   while (!(mask & index)) {
     mask >>= 1;

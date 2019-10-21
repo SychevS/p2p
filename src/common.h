@@ -114,7 +114,7 @@ struct hash<net::NodeId> {
   size_t operator()(const net::NodeId& id) const noexcept {
     size_t res;
     auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
-    std::copy(ptr, ptr + id.size(), reinterpret_cast<uint8_t*>(&res));
+    std::copy(ptr, ptr + sizeof(res), reinterpret_cast<uint8_t*>(&res));
     return res;
   }
 };
