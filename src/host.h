@@ -38,6 +38,7 @@ class Host : public RoutingTableEventHandler {
   void SendDirect(const NodeEntrance&, const Packet&);
   bool IsDuplicate(Packet::Id);
   void InsertNewBroadcastId(Packet::Id);
+  Packet FormPacket(Packet::Type, ByteVector&&);
 
   ba::io_context io_;
   const Config net_config_;

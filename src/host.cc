@@ -33,7 +33,7 @@ void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
 void Host::OnPacketReceived(Packet&& packet) {
   if ((packet.header.type & Packet::Type::kDirect) && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-  } else if (!IsDuplicate(packet.header.packet_id)){
+  } else if ((packet.header.type & Packet::Type::kBroadcast) && !IsDuplicate(packet.header.packet_id)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
     for (const auto& n : nodes) {
       SendDirect(n, packet.data);
@@ -72,20 +72,28 @@ void Host::SendDirect(const NodeEntrance&, const Packet&) {
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
-  Packet packet;
-  packet.data = std::move(data);
-  packet.header.type = Packet::Type::kBroadcast;
-  packet.header.data_size = packet.data.size();
-  packet.header.sender = my_contacts_.id;
-  packet.header.packet_id = MurmurHash2(packet.data.data(), packet.data.size());
+  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data));
   {
     Guard g(broadcast_id_mux_);
-    InsertNewBroadcastId(packet.header.packet_id);
+    InsertNewBroadcastId(pack.header.packet_id);
   }
   auto nodes = routing_table_->GetBroadcastList(my_contacts_.id);
   for (const auto& n : nodes) {
-    SendDirect(n, packet);
+    SendDirect(n, pack);
   }
+}
+
+Packet Host::FormPacket(Packet::Type type, ByteVector&& data) {
+  Packet result;
+  result.data = std::move(data);
+
+  auto& h = result.header;
+  h.type = type;
+  h.data_size = result.data.size();
+  h.sender = my_contacts_.id;
+  h.packet_id = MurmurHash2(result.data.data(), result.data.size());
+
+  return result;
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
