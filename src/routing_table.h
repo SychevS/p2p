@@ -40,7 +40,7 @@ class RoutingTable : public UdpSocketEventHandler {
   bool HasNode(const NodeId&, NodeEntrance&);
   void StartFindNode(const NodeId&);
 
-  std::vector<NodeEntrance> GetBroadcastList(const NodeId&) { return std::vector<NodeEntrance>{}; }
+  std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
   static NodeId Distance(const NodeId&, const NodeId&);
 
@@ -50,10 +50,15 @@ class RoutingTable : public UdpSocketEventHandler {
   // are very unlikely to fail within an hour of each other
   static constexpr uint8_t k = 16;
 
+  // if kBroadcastReplication == k, topology based broadcast becomes frooding;
+  // if it equals to 1, it takes logN time to spread a message through network
+  // but whole subtrees may not receive the message
+  static constexpr uint8_t kBroadcastReplication = 3;
+
  private:
   static constexpr uint8_t kPingExpirationSeconds = 60;
 
-  uint16_t KBucketIndex(const NodeId& distance) const noexcept;
+  uint16_t KBucketIndex(const NodeId& id) const noexcept;
   static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
 
   void OnSocketClosed(const boost::system::error_code&) override {}

@@ -65,6 +65,30 @@ void RoutingTable::StartFindNode(const NodeId& id) {
   }
 }
 
+std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_from) {
+  std::vector<NodeEntrance> ret;
+  uint16_t index = KBucketIndex(received_from);
+  uint16_t mask = 0x8000;
+  while (!(mask & index)) {
+    mask >>= 1;
+  }
+  Guard g(k_bucket_mux_);
+  for (uint16_t i = 1; i < mask; i <<= 1) {
+    uint8_t added_in_subtree = 0;
+    for (uint16_t j = i; j < mask && j < (i * 2); ++j) {
+      auto& nodes = k_buckets_[j].GetNodes();
+      auto it = nodes.begin();
+      while (it != nodes.end() && added_in_subtree < kBroadcastReplication) {
+        ret.push_back(*it);
+        ++it;
+      }
+      if (added_in_subtree == kBroadcastReplication) break;
+    }
+  }
+
+  return ret;
+}
+
 void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVector& data) {
   auto packet = KademliaDatagram::ReinterpretUdpPacket(from, data);
   if (!packet) return;
