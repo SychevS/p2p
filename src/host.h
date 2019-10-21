@@ -2,6 +2,7 @@
 #define NET_HOST_H
 
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -34,11 +35,11 @@ class Host : public RoutingTableEventHandler {
   void DeterminePublic();
   void TcpListen();
   void StartAccept();
-  void SendDirect(const NodeEntrance&, const ByteVector&);
   void SendDirect(const NodeEntrance&, const Packet&);
   bool IsDuplicate(Packet::Id);
   void InsertNewBroadcastId(Packet::Id);
-  Packet FormPacket(Packet::Type, ByteVector&&);
+  Packet FormPacket(Packet::Type, ByteVector&&, const NodeId* receiver = nullptr);
+  void SendPacket(const NodeEntrance& receiver, Packet&&);
 
   ba::io_context io_;
   const Config net_config_;
@@ -50,6 +51,11 @@ class Host : public RoutingTableEventHandler {
   Mutex broadcast_id_mux_;
   constexpr static size_t kMaxBroadcastIds_ = 10000;
   std::unordered_set<Packet::Id> broadcast_ids_;
+
+  Mutex send_mux_;
+  constexpr static size_t kMaxSendQueueSize_ = 1000;
+  size_t packets_to_send_;
+  std::unordered_map<NodeId, std::vector<Packet>> send_queue_;
 };
 
 } // namespace net

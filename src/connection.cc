@@ -44,4 +44,16 @@ void Connection::StartRead() {
          });
 }
 
+void Connection::Send(Packet&& pack) {
+  serializer_.Clear();
+  serializer_.Put(pack);
+  Ptr self(shared_from_this());
+  ba::async_write(socket_, ba::buffer(serializer_.GetData()),
+          [this, self](const boost::system::error_code& err, size_t /* written length */) {
+            if (err) {
+              LOG(DEBUG) << "Cannot send packet, reason " << err.value()
+                         << ", " << err.message();
+            }
+          });
+}
 } // namespace net

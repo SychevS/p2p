@@ -28,6 +28,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   }
 
   void StartRead();
+  void Send(Packet&&);
   void Close();
 
  private:
@@ -39,6 +40,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   Host& host_;
   bi::tcp::socket socket_;
   Packet packet_;
+  Serializer serializer_;
 };
 
 } // namespace net

@@ -1,7 +1,9 @@
 #ifndef NET_COMMON_H
 #define NET_COMMON_H
 
+#include <algorithm>
 #include <cinttypes>
+#include <functional>
 #include <set>
 #include <string>
 
@@ -104,4 +106,17 @@ std::string IdToBase58(const NodeId&);
 NodeId IdFromBase58(const std::string&);
 
 } // namespace net
+
+namespace std {
+
+template<>
+struct hash<net::NodeId> {
+  size_t operator()(const net::NodeId& id) const noexcept {
+    size_t res;
+    auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
+    std::copy(ptr, ptr + id.size(), reinterpret_cast<uint8_t*>(&res));
+    return res;
+  }
+};
+} // namespace std
 #endif // NET_COMMON_H

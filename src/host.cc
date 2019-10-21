@@ -11,7 +11,8 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
       net_config_(config),
       acceptor_(io_),
       event_handler_(event_handler),
-      routing_table_(nullptr) {
+      routing_table_(nullptr),
+      packets_to_send_(0) {
   InitLogger();
   DeterminePublic();
 
@@ -26,8 +27,16 @@ void Host::Run() {
   io_.run();
 }
 
-void Host::HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) {
-
+void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {
+  if (event == RoutingTableEventType::kNodeFound) {
+    Guard g(send_mux_);
+    auto& packets = send_queue_[node.id];
+    for (size_t i = 0; i < packets.size(); ++i) {
+      SendPacket(node, std::move(packets[i]));
+      --packets_to_send_;
+    }
+    send_queue_.erase(node.id);
+  }
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
@@ -36,7 +45,7 @@ void Host::OnPacketReceived(Packet&& packet) {
   } else if ((packet.header.type & Packet::Type::kBroadcast) && !IsDuplicate(packet.header.packet_id)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
     for (const auto& n : nodes) {
-      SendDirect(n, packet.data);
+      SendDirect(n, packet);
     }
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   }
@@ -59,16 +68,31 @@ void Host::InsertNewBroadcastId(Packet::Id id) {
   broadcast_ids_.insert(id);
 }
 
-void Host::SendDirect(const NodeId&, ByteVector&&) {
+void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
+  auto pack = FormPacket(Packet::Type::kDirect, std::move(data), &receiver);
 
+  NodeEntrance receiver_contacts;
+  if (routing_table_->HasNode(receiver, receiver_contacts)) {
+    SendPacket(receiver_contacts, std::move(pack));
+  } else {
+    {
+     Guard g(send_mux_);
+     if (packets_to_send_ == kMaxSendQueueSize_) {
+       auto it = send_queue_.begin();
+       packets_to_send_ -= it->second.size();
+       send_queue_.erase(it);
+     }
+     send_queue_[receiver].emplace_back(std::move(pack));
+     ++packets_to_send_;
+    }
+
+    routing_table_->StartFindNode(receiver);
+  }
 }
 
-void Host::SendDirect(const NodeEntrance&, const ByteVector&) {
-
-}
-
-void Host::SendDirect(const NodeEntrance&, const Packet&) {
-
+void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
+  auto copy = packet;
+  SendPacket(receiver, std::move(copy));
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
@@ -83,7 +107,7 @@ void Host::SendBroadcast(ByteVector&& data) {
   }
 }
 
-Packet Host::FormPacket(Packet::Type type, ByteVector&& data) {
+Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* receiver) {
   Packet result;
   result.data = std::move(data);
 
@@ -91,9 +115,26 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data) {
   h.type = type;
   h.data_size = result.data.size();
   h.sender = my_contacts_.id;
+  if (receiver) h.receiver = *receiver;
   h.packet_id = MurmurHash2(result.data.data(), result.data.size());
 
   return result;
+}
+
+void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
+  auto new_conn = Connection::Create(*this, io_);
+  bi::tcp::endpoint ep(receiver.address, receiver.tcp_port);
+  new_conn->Socket().async_connect(ep,
+          [this, new_conn, pack = std::move(pack)](const boost::system::error_code& err) mutable {
+            if (err) {
+              // @TODO think about to send broadcast if cannot reach the peer
+              LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
+                         << ", " << err.message();
+              return;
+            }
+
+            new_conn->Send(std::move(pack));
+          });
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
