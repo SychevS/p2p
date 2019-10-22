@@ -23,8 +23,15 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
   TcpListen();
 }
 
+Host::~Host() {
+  if (working_thread_.joinable()) {
+    working_thread_.join();
+  }
+}
+
 void Host::Run() {
-  io_.run();
+  std::thread t([this] { io_.run(); }); 
+  working_thread_ = std::move(t);
 }
 
 void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {

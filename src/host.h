@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <thread>
 #include <vector>
 
 #include "common.h"
@@ -20,6 +21,7 @@ class HostEventHandler {
 class Host : public RoutingTableEventHandler {
  public:
   Host(const Config&, HostEventHandler&);
+  ~Host();
 
   void AddKnownNodes(const std::vector<NodeEntrance>&);
 
@@ -56,6 +58,8 @@ class Host : public RoutingTableEventHandler {
   constexpr static size_t kMaxSendQueueSize_ = 1000;
   size_t packets_to_send_;
   std::unordered_map<NodeId, std::vector<Packet>> send_queue_;
+
+  std::thread working_thread_;
 };
 
 } // namespace net
