@@ -33,8 +33,10 @@ uint32_t MurmurHash2(const uint8_t* key, unsigned int len) {
   switch (len) {
     case 3:
       h ^= data[2] << 16;
+      [[fallthrough]];
     case 2:
       h ^= data[1] << 8;
+      [[fallthrough]];
     case 1:
       h ^= data[0];
       h *= m;
