@@ -50,7 +50,7 @@ class RoutingTable : public UdpSocketEventHandler {
   // are very unlikely to fail within an hour of each other
   static constexpr uint8_t k = 16;
 
-  // if kBroadcastReplication == k, topology based broadcast becomes frooding;
+  // if kBroadcastReplication == k, topology based broadcast becomes flooding;
   // if it equals to 1, it takes logN time to spread a message through network
   // but whole subtrees may not receive the message
   static constexpr uint8_t kBroadcastReplication = 3;

@@ -16,6 +16,8 @@ class HostEventHandler {
  public:
   virtual ~HostEventHandler() = default;
   virtual void OnMessageReceived(const NodeId& from, ByteVector&& message) = 0;
+  virtual void OnNodeDiscovered(const NodeId&) = 0;
+  virtual void OnNodeRemoved(const NodeId&) = 0;
 };
 
 class Host : public RoutingTableEventHandler {

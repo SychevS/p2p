@@ -35,14 +35,25 @@ void Host::Run() {
 }
 
 void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {
-  if (event == RoutingTableEventType::kNodeFound) {
-    Guard g(send_mux_);
-    auto& packets = send_queue_[node.id];
-    for (size_t i = 0; i < packets.size(); ++i) {
-      SendPacket(node, std::move(packets[i]));
-      --packets_to_send_;
+  switch (event) {
+    case RoutingTableEventType::kNodeFound : {
+      Guard g(send_mux_);
+      auto& packets = send_queue_[node.id];
+      for (size_t i = 0; i < packets.size(); ++i) {
+        SendPacket(node, std::move(packets[i]));
+        --packets_to_send_;
+      }
+      send_queue_.erase(node.id);
+      break;
     }
-    send_queue_.erase(node.id);
+
+    case RoutingTableEventType::kNodeAdded :
+      event_handler_.OnNodeDiscovered(node.id);
+      break;
+
+    case RoutingTableEventType::kNodeRemoved :
+      event_handler_.OnNodeRemoved(node.id);
+      break;
   }
 }
 
