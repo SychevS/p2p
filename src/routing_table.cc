@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <future>
+#include <thread>
 
 #include "routing_table.h"
 #include "utils/log.h"
@@ -146,9 +146,7 @@ void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
   }
 
   auto& closest_nodes = find_node_resp.closest;
-
-  auto fut = std::async([this](const auto& nodes) {
-                UpdateKBuckets(nodes); }, closest_nodes);
+  UpdateKBuckets(closest_nodes);
 
   auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
                 [&find_node_resp](const auto& n) {
@@ -175,8 +173,6 @@ void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
     find_node_sent_.erase(find_node_resp.target);
     host_.HandleRoutTableEvent(*it, RoutingTableEventType::kNodeFound);
   }
-
-  fut.wait();
 }
 
 void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {
@@ -193,7 +189,11 @@ void RoutingTable::UpdateKBuckets(const NodeEntrance& node) {
   } else if (bucket.Size() < k) {
     bucket.AddNode(node);
     ++total_nodes_;
-    host_.HandleRoutTableEvent(node, RoutingTableEventType::kNodeAdded);
+    std::thread t([this](const NodeEntrance& node) {
+                    host_.HandleRoutTableEvent(
+                      node, RoutingTableEventType::kNodeAdded);
+                  }, node);
+    t.detach();
   } else {
     TrySwap(node, bucket.LeastRecentlySeen(), bucket);
   }
