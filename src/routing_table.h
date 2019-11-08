@@ -111,8 +111,7 @@ inline uint16_t RoutingTable::KBucketIndex(const NodeId& target,
   auto distance = Distance(target, id);
 
   uint16_t res = 0;
-  while (distance > 0) {
-    distance >>= 1;
+  while ((distance >>= 1) > 0) {
     ++res;
   }
   return res;
