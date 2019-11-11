@@ -76,6 +76,8 @@ class RoutingTable : public UdpSocketEventHandler {
   void TrySwap(const NodeEntrance& new_node, const NodeEntrance& old_node,
                KBucket& bucket);
 
+  void NotifyHost(const NodeEntrance& node, RoutingTableEventType);
+
   // Returns k closest nodes to target id.
   // Or total_nodes_ nodes if total_nodes_ < k.
   std::vector<NodeEntrance> NearestNodes(const NodeId&);

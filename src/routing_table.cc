@@ -20,15 +20,10 @@ RoutingTable::RoutingTable(ba::io_context& io,
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];
 
-  for (auto& n : bootstrap_nodes) {
-    if (n.id == host_data_.id) continue; // our node is bootstap one
-    k_buckets_[KBucketIndex(n.id)].AddNode(n);
-  }
-  total_nodes_.store(bootstrap_nodes.size());
+  k_buckets_[KBucketIndex(host_data_.id)].AddNode(host_data_);
+  total_nodes_.store(1);
 
-  if (bootstrap_nodes.size()) {
-    StartFindNode(host_data_.id);
-  }
+  AddNodes(bootstrap_nodes);
 }
 
 RoutingTable::~RoutingTable() {
@@ -37,7 +32,7 @@ RoutingTable::~RoutingTable() {
 }
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
-  bool try_lookup = total_nodes_.load() == 0;
+  bool try_lookup = total_nodes_.load() == 1; // only host node
   UpdateKBuckets(nodes);
   if (try_lookup && total_nodes_.load() > 0) {
     StartFindNode(host_data_.id);
@@ -137,7 +132,10 @@ void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
 
 void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
   auto& find_node_resp = dynamic_cast<const FindNodeRespDatagram&>(d);
+
   Guard g(find_node_mux_);
+  if (find_node_sent_.find(find_node_resp.target) == find_node_sent_.end()) return;
+
   auto& already_queried = find_node_sent_[find_node_resp.target];
   if (std::find(already_queried.begin(), already_queried.end(),
               find_node_resp.node_from.id) == already_queried.end()) {
@@ -171,7 +169,7 @@ void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
     }
   } else {
     find_node_sent_.erase(find_node_resp.target);
-    host_.HandleRoutTableEvent(*it, RoutingTableEventType::kNodeFound);
+    NotifyHost(*it, RoutingTableEventType::kNodeFound);
   }
 }
 
@@ -182,6 +180,8 @@ void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {
 }
 
 void RoutingTable::UpdateKBuckets(const NodeEntrance& node) {
+  if (node.id == host_data_.id) return;
+
   Guard g(k_bucket_mux_);
   KBucket& bucket = k_buckets_[KBucketIndex(node.id)];
   if (bucket.Exists(node.id)) {
@@ -189,11 +189,7 @@ void RoutingTable::UpdateKBuckets(const NodeEntrance& node) {
   } else if (bucket.Size() < k) {
     bucket.AddNode(node);
     ++total_nodes_;
-    std::thread t([this](const NodeEntrance& node) {
-                    host_.HandleRoutTableEvent(
-                      node, RoutingTableEventType::kNodeAdded);
-                  }, node);
-    t.detach();
+    NotifyHost(node, RoutingTableEventType::kNodeAdded);
   } else {
     TrySwap(node, bucket.LeastRecentlySeen(), bucket);
   }
@@ -226,8 +222,8 @@ void RoutingTable::TrySwap(const NodeEntrance& new_node, const NodeEntrance& old
                          bucket.Evict(old_node.id);
                          bucket.AddNode(new_node);
                         }
-                        host_.HandleRoutTableEvent(old_node, RoutingTableEventType::kNodeRemoved);
-                        host_.HandleRoutTableEvent(new_node, RoutingTableEventType::kNodeAdded);
+                        NotifyHost(old_node, RoutingTableEventType::kNodeRemoved);
+                        NotifyHost(new_node, RoutingTableEventType::kNodeAdded);
                       }
                     });
 }
@@ -259,5 +255,12 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
     ret.emplace_back(std::move(n.second));
   }
   return ret;
+}
+
+void RoutingTable::NotifyHost(const NodeEntrance& node, RoutingTableEventType event) {
+    std::thread t([this, &node, event]() {
+                    host_.HandleRoutTableEvent(node, event);
+                  });
+    t.detach();
 }
 } // namespace net
