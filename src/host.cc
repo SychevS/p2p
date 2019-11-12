@@ -17,9 +17,8 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
   DeterminePublic();
 
   routing_table_ = std::make_shared<RoutingTable>(io_, my_contacts_,
-      static_cast<RoutingTableEventHandler&>(*this),
-      net_config_.use_default_boot_nodes ? GetDefaultBootNodes()
-                                         : net_config_.custom_boot_nodes);
+      static_cast<RoutingTableEventHandler&>(*this));
+
   TcpListen();
 }
 
@@ -30,6 +29,10 @@ Host::~Host() {
 }
 
 void Host::Run() {
+  routing_table_->AddNodes(
+          net_config_.use_default_boot_nodes ?
+          GetDefaultBootNodes() : net_config_.custom_boot_nodes);
+
   std::thread t([this] { io_.run(); }); 
   working_thread_ = std::move(t);
 }

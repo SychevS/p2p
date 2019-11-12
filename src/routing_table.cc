@@ -8,8 +8,7 @@ namespace net {
 
 RoutingTable::RoutingTable(ba::io_context& io,
                            const NodeEntrance& host_data,
-                           RoutingTableEventHandler& host,
-                           const std::vector<NodeEntrance>& bootstrap_nodes)
+                           RoutingTableEventHandler& host)
     : socket_(UdpSocket<kMaxDatagramSize>::Create(io,
           bi::udp::endpoint(host_data.address, host_data.udp_port),
           static_cast<UdpSocketEventHandler&>(*this))),
@@ -22,8 +21,6 @@ RoutingTable::RoutingTable(ba::io_context& io,
 
   k_buckets_[KBucketIndex(host_data_.id)].AddNode(host_data_);
   total_nodes_.store(1);
-
-  AddNodes(bootstrap_nodes);
 }
 
 RoutingTable::~RoutingTable() {
@@ -258,9 +255,9 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
 }
 
 void RoutingTable::NotifyHost(const NodeEntrance& node, RoutingTableEventType event) {
-    std::thread t([this, &node, event]() {
-                    host_.HandleRoutTableEvent(node, event);
-                  });
-    t.detach();
+  std::thread t([this, &node, event]() {
+                  host_.HandleRoutTableEvent(node, event);
+                });
+  t.detach();
 }
 } // namespace net

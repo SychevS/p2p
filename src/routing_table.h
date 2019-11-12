@@ -30,11 +30,10 @@ class RoutingTable : public UdpSocketEventHandler {
  public:
   RoutingTable(ba::io_context& io,
                const NodeEntrance& host_data,
-               RoutingTableEventHandler& host,
-               const std::vector<NodeEntrance>& bootstrap_nodes);
+               RoutingTableEventHandler& host);
   ~RoutingTable();
 
-  // may be used instead of default bootstrap list
+  // starts lookup if not started yet
   void AddNodes(const std::vector<NodeEntrance>&);
 
   bool HasNode(const NodeId&, NodeEntrance&);
