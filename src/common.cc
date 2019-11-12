@@ -50,7 +50,7 @@ void Packet::PutHeader(Serializer& s) const {
 
 void Packet::Put(Serializer& s) const {
   PutHeader(s);
-  s.Put(data);
+  s.Put(data.data(), data.size());
 }
 
 bool Packet::GetHeader(Unserializer& u) {
@@ -62,7 +62,9 @@ bool Packet::GetHeader(Unserializer& u) {
 }
 
 bool Packet::Get(Unserializer& u) {
-  return GetHeader(u) && u.Get(data);
+  if (!GetHeader(u)) return false;
+  data.resize(header.data_size);
+  return u.Get(data.data(), data.size());
 }
 
 bool IsPrivateAddress(const bi::address& address_to_check) {
