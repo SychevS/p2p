@@ -61,9 +61,9 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
-  if ((packet.header.type & Packet::Type::kDirect) && packet.header.receiver == my_contacts_.id) {
+  if (packet.header.type == Packet::Type::kDirect && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-  } else if ((packet.header.type & Packet::Type::kBroadcast) && !IsDuplicate(packet.header.packet_id)) {
+  } else if (packet.header.type == Packet::Type::kBroadcast && !IsDuplicate(packet.header.packet_id)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
     for (const auto& n : nodes) {
       SendDirect(n, packet);
