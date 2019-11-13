@@ -18,9 +18,6 @@ RoutingTable::RoutingTable(ba::io_context& io,
       kBucketsNum(host_data.id.size() * 8) { // num of bits in NodeId
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];
-
-  k_buckets_[KBucketIndex(host_data_.id)].AddNode(host_data_);
-  total_nodes_.store(1);
 }
 
 RoutingTable::~RoutingTable() {
@@ -29,7 +26,7 @@ RoutingTable::~RoutingTable() {
 }
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
-  bool try_lookup = total_nodes_.load() == 1; // only host node
+  bool try_lookup = total_nodes_.load() == 0;
   UpdateKBuckets(nodes);
   if (try_lookup && total_nodes_.load() > 0) {
     StartFindNode(host_data_.id);

@@ -91,7 +91,7 @@ class RoutingTable : public UdpSocketEventHandler {
   Mutex k_bucket_mux_;
   KBucket* k_buckets_;
   ba::io_context& io_;
-  std::atomic<size_t> total_nodes_;
+  std::atomic<size_t> total_nodes_{0};
 
   Mutex find_node_mux_;
   std::map<NodeId, std::vector<NodeId>> find_node_sent_;
