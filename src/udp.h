@@ -96,6 +96,7 @@ void UdpSocket<MaxDatagramSize>::Open() {
   started_.store(true);
 
   socket_.open(bi::udp::v4());
+  socket_.set_option(ba::socket_base::reuse_address(true));
   try {
     socket_.bind(listen_ep_);
   } catch (std::exception& e) {
