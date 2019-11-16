@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "common.h"
+#include "connection.h"
 #include "routing_table.h"
 
 namespace net {
@@ -35,6 +36,8 @@ class Host : public RoutingTableEventHandler {
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
   void OnPacketReceived(Packet&&);
 
+  bool AddConnection(const NodeId&, Connection::Ptr);
+
  private:
   void DeterminePublic();
   void TcpListen();
@@ -44,6 +47,7 @@ class Host : public RoutingTableEventHandler {
   void InsertNewBroadcastId(Packet::Id);
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId* receiver = nullptr);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
+  bool IsBanned(const bi::address&) { return false; }
 
   ba::io_context io_;
   const Config net_config_;
@@ -62,6 +66,11 @@ class Host : public RoutingTableEventHandler {
   std::unordered_map<NodeId, std::vector<Packet>> send_queue_;
 
   std::thread working_thread_;
+
+  Mutex out_mux_;
+  Mutex in_mux_;
+  std::unordered_map<NodeId, Connection::Ptr> write_connections_;
+  std::unordered_map<NodeId, Connection::Ptr> read_connections_;
 };
 
 } // namespace net

@@ -14,6 +14,7 @@ struct KademliaDatagram {
       : node_from(node_from) {}
 
   virtual uint8_t DatagramType() const noexcept = 0;
+  virtual ~KademliaDatagram() = default;
 
   static std::unique_ptr<KademliaDatagram>
   ReinterpretUdpPacket(const bi::udp::endpoint& ep, const ByteVector& data);

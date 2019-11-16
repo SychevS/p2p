@@ -18,9 +18,7 @@ void Connection::StartRead() {
 
   ba::async_read(socket_, ba::buffer(packet_.data, Packet::kHeaderSize),
           [this, self](const boost::system::error_code& er, size_t len) {
-            if (er || len != Packet::kHeaderSize) {
-              LOG(DEBUG) << "Error while receive header, "
-                         << er.value() << ", " << er.message();
+            if (!CheckRead(er, Packet::kHeaderSize, len)) {
               return;
             }
 
@@ -33,27 +31,90 @@ void Connection::StartRead() {
             packet_.data.resize(packet_.header.data_size);
             ba::async_read(socket_, ba::buffer(packet_.data, packet_.header.data_size),
                     [this, self](const boost::system::error_code& er, size_t len) {
-                      if (er || len != packet_.header.data_size) {
-                        LOG(DEBUG) << "Error while receive message, "
-                                   << er.value() << ", " << er.message();
+                      if (!CheckRead(er, packet_.header.data_size, len)) {
                         return;
                       }
 
-                      host_.OnPacketReceived(std::move(packet_));
+                      if (packet_.IsRegistration() && !host_.AddConnection(packet_.header.sender, self)) {
+                        Close();
+                        return;
+                      } else {
+                        host_.OnPacketReceived(std::move(packet_));
+                      }
+                      packet_ = Packet();
+                      StartRead();
                     });
          });
 }
 
+bool Connection::CheckRead(const boost::system::error_code& er, size_t expected, size_t len) {
+  if (er && er.category() != ba::error::get_misc_category() && er.value() != ba::error::eof) {
+    LOG(DEBUG) << "Error reading " << er.value() << ", " << er.message();
+    return false;
+  }
+
+  if (er && len < expected) {
+    LOG(DEBUG) << "Error reading " << er.value() << ", " << er.message()
+               << ", len " << len;
+    Close();
+    return false;
+  }
+
+  if (len != expected) {
+    LOG(ERROR) << "Wrong packet length";
+    Close();
+    return false;
+  }
+
+  return true;
+}
+
 void Connection::Send(Packet&& pack) {
-  serializer_.Clear();
-  serializer_.Put(pack);
+  Guard g(send_mux_);
+  Serializer s;
+  s.Put(pack);
+  send_queue_.push_back(s.GetData());
+
+  if (send_queue_.size() == 1) {
+    StartWrite();
+  }
+}
+
+void Connection::StartWrite() {
   Ptr self(shared_from_this());
-  ba::async_write(socket_, ba::buffer(serializer_.GetData()),
-          [this, self](const boost::system::error_code& err, size_t /* written length */) {
-            if (err) {
-              LOG(DEBUG) << "Cannot send packet, reason " << err.value()
-                         << ", " << err.message();
-            }
-          });
+  ba::async_write(socket_, ba::buffer(send_queue_[0]),
+      [this, self](const boost::system::error_code& err, size_t /* written length */) {
+        if (err) {
+          LOG(DEBUG) << "Cannot send packet, reason " << err.value()
+                     << ", " << err.message();
+        }
+
+        Guard g(send_mux_);
+        send_queue_.pop_front();
+
+        if (send_queue_.empty()) return;
+
+        StartWrite();
+      }
+  );
+}
+
+void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
+  Ptr self(shared_from_this());
+  {
+   Guard g(send_mux_);
+   Serializer s;
+   s.Put(reg_pack);
+   send_queue_.push_back(s.GetData());
+  }
+  socket_.async_connect(ep, [this, self](const boost::system::error_code& err) {
+                              if (err) {
+                                LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
+                                           << ", " << err.message();
+                                return;
+                              }
+                              StartWrite();
+                            }
+  );
 }
 } // namespace net

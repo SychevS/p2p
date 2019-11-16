@@ -65,10 +65,11 @@ struct Packet {
   enum Type : uint8_t {
     kDirect = 0,
     kBroadcast = 1,
+    kRegistration
   };
 
   using Id = uint32_t;
-  constexpr static size_t kHeaderSize = 77;
+  constexpr static size_t kHeaderSize = 81;
 
   struct Header {
     Type type;
@@ -76,6 +77,7 @@ struct Packet {
     NodeId sender;
     NodeId receiver;
     Id packet_id;
+    uint32_t reserved;
   };
 
   void PutHeader(Serializer&) const;
@@ -83,6 +85,10 @@ struct Packet {
 
   void Put(Serializer&) const;
   bool Get(Unserializer& u);
+
+  bool IsDirect() const noexcept { return header.type == kDirect; }
+  bool IsBroadcast() const noexcept { return header.type == kBroadcast; }
+  bool IsRegistration() const noexcept { return header.type == kRegistration; }
 
   Header header;
   ByteVector data;

@@ -1,6 +1,5 @@
 #include "host.h"
 
-#include "connection.h"
 #include "utils/log.h"
 #include "utils/murmurhash2.h"
 
@@ -61,9 +60,9 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
-  if (packet.header.type == Packet::Type::kDirect && packet.header.receiver == my_contacts_.id) {
+  if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-  } else if (packet.header.type == Packet::Type::kBroadcast && !IsDuplicate(packet.header.packet_id)) {
+  } else if (packet.IsBroadcast() && !IsDuplicate(packet.header.packet_id)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
     for (const auto& n : nodes) {
       SendDirect(n, packet);
@@ -90,6 +89,9 @@ void Host::InsertNewBroadcastId(Packet::Id id) {
 }
 
 void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
+  if (receiver == my_contacts_.id) {
+    return;
+  }
   auto pack = FormPacket(Packet::Type::kDirect, std::move(data), &receiver);
 
   NodeEntrance receiver_contacts;
@@ -143,19 +145,18 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* rece
 }
 
 void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
-  auto new_conn = Connection::Create(*this, io_);
-  bi::tcp::endpoint ep(receiver.address, receiver.tcp_port);
-  new_conn->Socket().async_connect(ep,
-          [this, new_conn, pack = std::move(pack)](const boost::system::error_code& err) mutable {
-            if (err) {
-              // @TODO think about to send broadcast if cannot reach the peer
-              LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
-                         << ", " << err.message();
-              return;
-            }
-
-            new_conn->Send(std::move(pack));
-          });
+  Guard g(out_mux_);
+  auto it = write_connections_.find(receiver.id);
+  if (it == write_connections_.end()) {
+    auto new_conn = Connection::Create(*this, io_);
+    write_connections_.insert(std::make_pair(receiver.id, new_conn));
+    new_conn->Connect(Connection::Endpoint(receiver.address, receiver.tcp_port),
+                      FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &receiver.id)); // @TODO Form reg packet
+    new_conn->Send(std::move(pack));
+    LOG(INFO) << "New write connection with " << IdToBase58(receiver.id);
+  } else {
+    it->second->Send(std::move(pack));
+  }
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
@@ -213,22 +214,39 @@ void Host::TcpListen() {
 void Host::StartAccept() {
   if (acceptor_.is_open()) {
     acceptor_.async_accept([this](const boost::system::error_code& err, bi::tcp::socket sock) {
-              if (!acceptor_.is_open()) {
-                LOG(INFO) << "Cannot accept new connection, acceptor is not open.";
-                return;
-              }
+                             if (!acceptor_.is_open()) {
+                               LOG(INFO) << "Cannot accept new connection, acceptor is not open.";
+                               return;
+                             }
 
-              if (err) {
-                LOG(ERROR) << "Cannot accept new connection, error occured. "
-                           << err.value() << ", " << err.message();
-                return;
-              }
+                             if (err) {
+                               LOG(ERROR) << "Cannot accept new connection, error occured. "
+                                          << err.value() << ", " << err.message();
+                               return;
+                             }
 
-              auto new_conn = Connection::Create(*this, std::move(sock));
-              new_conn->StartRead();
+                             if (IsBanned(sock.remote_endpoint().address())) {
+                               LOG(INFO) << "Block connection from banned address "
+                                         << sock.remote_endpoint().address().to_string();
+                               StartAccept();
+                             }
 
-              StartAccept();
-            });
+                             auto new_conn = Connection::Create(*this, std::move(sock));
+                             new_conn->StartRead();
+
+                             StartAccept();
+                           }
+    );
   }
+}
+
+bool Host::AddConnection(const NodeId& peer, Connection::Ptr new_conn) {
+  Guard g(in_mux_);
+  if (read_connections_.find(peer) != read_connections_.end()) {
+    return false;
+  }
+  read_connections_.insert(std::make_pair(peer, new_conn));
+  LOG(INFO) << "New read connection with " << IdToBase58(peer);
+  return true;
 }
 } // namespace net
