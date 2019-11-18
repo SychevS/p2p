@@ -26,10 +26,15 @@ RoutingTable::~RoutingTable() {
 }
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
-  bool try_lookup = total_nodes_.load() == 0;
-  UpdateKBuckets(nodes);
-  if (try_lookup && total_nodes_.load() > 0) {
-    StartFindNode(host_data_.id);
+  if (total_nodes_.load() == 0) {
+    StartFindNode(host_data_.id, &nodes);
+  } else {
+    Guard g(ping_mux_);
+    PingDatagram ping(host_data_);
+    for (auto& n : nodes) {
+      socket_->Send(ping.ToUdp(n));
+      ping_sent_.insert(n.id);
+    }
   }
 }
 
@@ -38,7 +43,7 @@ bool RoutingTable::HasNode(const NodeId& id, NodeEntrance& result) {
   return k_buckets_[KBucketIndex(id)].Get(id, result);
 }
 
-void RoutingTable::StartFindNode(const NodeId& id) {
+void RoutingTable::StartFindNode(const NodeId& id, const std::vector<NodeEntrance>* find_list) {
   Guard g(find_node_mux_);
   auto& nodes_to_query = find_node_sent_[id];
   if (nodes_to_query.size() != 0) {
@@ -47,7 +52,9 @@ void RoutingTable::StartFindNode(const NodeId& id) {
   }
 
   auto nearest_nodes = NearestNodes(id);
-  for (auto& n : nearest_nodes) {
+  auto& nodes = find_list ? *find_list : nearest_nodes;
+
+  for (auto& n : nodes) {
     FindNodeDatagram d(host_data_, id);
     socket_->Send(d.ToUdp(n));
     nodes_to_query.push_back(n.id);
@@ -139,6 +146,7 @@ void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
 
   auto& closest_nodes = find_node_resp.closest;
   UpdateKBuckets(closest_nodes);
+  UpdateKBuckets(find_node_resp.node_from);
 
   auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
                 [&find_node_resp](const auto& n) {

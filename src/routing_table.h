@@ -37,7 +37,7 @@ class RoutingTable : public UdpSocketEventHandler {
   void AddNodes(const std::vector<NodeEntrance>&);
 
   bool HasNode(const NodeId&, NodeEntrance&);
-  void StartFindNode(const NodeId&);
+  void StartFindNode(const NodeId&, const std::vector<NodeEntrance>* find_list = nullptr);
 
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
