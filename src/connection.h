@@ -26,7 +26,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Connect(const Endpoint&, Packet&& reg_pack);
 
   ~Connection() { Close(); }
-  void Close();
+  void Close(bool notify_host = false);
 
   void Send(Packet&&);
   void StartRead();

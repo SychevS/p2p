@@ -4,8 +4,8 @@
 
 namespace net {
 
-void Connection::Close() {
-  if (registation_passed_) {
+void Connection::Close(bool notify_host) {
+  if (notify_host) {
     host_.OnConnectionDropped(remote_node_, active_);
   }
 
@@ -24,14 +24,14 @@ void Connection::StartRead() {
           [this, self](const boost::system::error_code& er, size_t len) {
             if (!CheckRead(er, Packet::kHeaderSize, len)) {
               LOG(DEBUG) << "Header check read failded.";
-              Close();
+              Close(registation_passed_);
               return;
             }
 
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header reseived";
-              Close();
+              Close(registation_passed_);
               return;
             }
 
@@ -40,7 +40,7 @@ void Connection::StartRead() {
                     [this, self](const boost::system::error_code& er, size_t len) {
                       if (!CheckRead(er, packet_.header.data_size, len)) {
                         LOG(DEBUG) << "Packet data check read failed.";
-                        Close();
+                        Close(registation_passed_);
                         return;
                       }
 
@@ -48,7 +48,7 @@ void Connection::StartRead() {
 
                       if (!registation_passed_) {
                         if (!is_reg) {
-                          Close();
+                          Close(registation_passed_);
                           return;
                         } else {
                           registation_passed_ = true;
@@ -61,7 +61,7 @@ void Connection::StartRead() {
 
                       if (is_reg) {
                         LOG(DEBUG) << "Reg packet recieved, when registartion passed.";
-                        Close();
+                        Close(registation_passed_);
                         return;
                       }
 
