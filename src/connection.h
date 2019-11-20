@@ -32,6 +32,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void StartRead();
 
   bool IsActive() const noexcept { return active_; }
+  bool IsConnected() const;
 
  private:
   Connection(Host& h, ba::io_context& io, bool active)
@@ -52,6 +53,8 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   std::atomic<bool> registation_passed_ = false;
   const bool active_;
+
+  NodeId remote_node_;
 };
 } // namespace net
 #endif // NET_CONNECTION_H

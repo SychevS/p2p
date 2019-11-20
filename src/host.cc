@@ -278,10 +278,15 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   }
 }
 
-void Host::OnDisconnected(const NodeId& remote_node) {
+void Host::OnConnectionDropped(const NodeId& remote_node, bool active) {
   Guard g(conn_mux_);
-  if (connections_.erase(remote_node)) {
-    LOG(INFO) << IdToBase58(remote_node) << " disconnected";
+  auto range = connections_.equal_range(remote_node);
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second->IsActive() == active) {
+      connections_.erase(it);
+      LOG(INFO) << "Connection with " << IdToBase58(remote_node)
+                << " was closed, active: " << active << ".";
+    }
   }
 }
 } // namespace net

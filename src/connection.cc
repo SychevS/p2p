@@ -5,6 +5,10 @@
 namespace net {
 
 void Connection::Close() {
+  if (registation_passed_) {
+    host_.OnConnectionDropped(remote_node_, active_);
+  }
+
   try {
     boost::system::error_code ec;
     socket_.shutdown(bi::tcp::socket::shutdown_both, ec);
@@ -19,6 +23,8 @@ void Connection::StartRead() {
   ba::async_read(socket_, ba::buffer(packet_.data, Packet::kHeaderSize),
           [this, self](const boost::system::error_code& er, size_t len) {
             if (!CheckRead(er, Packet::kHeaderSize, len)) {
+              LOG(DEBUG) << "Header check read failded.";
+              Close();
               return;
             }
 
@@ -33,6 +39,8 @@ void Connection::StartRead() {
             ba::async_read(socket_, ba::buffer(packet_.data, packet_.header.data_size),
                     [this, self](const boost::system::error_code& er, size_t len) {
                       if (!CheckRead(er, packet_.header.data_size, len)) {
+                        LOG(DEBUG) << "Packet data check read failed.";
+                        Close();
                         return;
                       }
 
@@ -45,6 +53,7 @@ void Connection::StartRead() {
                         } else {
                           registation_passed_ = true;
                           host_.OnConnected(packet_.header.sender, self);
+                          remote_node_ = packet_.header.sender;
                           StartRead();
                           return;
                         }
@@ -68,24 +77,26 @@ void Connection::StartRead() {
 bool Connection::CheckRead(const boost::system::error_code& er, size_t expected, size_t len) {
   if (er && er.category() != ba::error::get_misc_category() && er.value() != ba::error::eof) {
     LOG(DEBUG) << "Error reading " << er.value() << ", " << er.message();
-    Close();
     return false;
   }
 
   if (er && len < expected) {
     LOG(DEBUG) << "Error reading " << er.value() << ", " << er.message()
-               << ", len " << len;
-    Close();
+               << ", length " << len;
     return false;
   }
 
   if (len != expected) {
-    LOG(ERROR) << "Wrong packet length";
-    Close();
+    LOG(ERROR) << "Wrong packet length: expected " << expected
+               << ", real " << len;
     return false;
   }
 
   return true;
+}
+
+bool Connection::IsConnected() const {
+  return (socket_.is_open() && !socket_.remote_endpoint().address().is_unspecified());
 }
 
 void Connection::Send(Packet&& pack) {
