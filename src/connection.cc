@@ -39,11 +39,12 @@ void Connection::StartRead() {
                       bool is_reg = packet_.IsRegistration();
 
                       if (!registation_passed_) {
-                        if (!is_reg || !host_.OnConnected(packet_.header.sender, self)) {
+                        if (!is_reg) {
                           Close();
                           return;
                         } else {
                           registation_passed_ = true;
+                          host_.OnConnected(packet_.header.sender, self);
                           StartRead();
                           return;
                         }

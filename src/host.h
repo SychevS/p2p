@@ -36,8 +36,7 @@ class Host : public RoutingTableEventHandler {
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
   void OnPacketReceived(Packet&&);
 
-  // returns true if new connection has been added to host's connection list
-  bool OnConnected(const NodeId& remote_node, Connection::Ptr);
+  void OnConnected(const NodeId& remote_node, Connection::Ptr);
   void OnDisconnected(const NodeId& remote_node);
 
  private:
@@ -73,7 +72,7 @@ class Host : public RoutingTableEventHandler {
   std::thread working_thread_;
 
   Mutex conn_mux_;
-  std::unordered_map<NodeId, Connection::Ptr> connections_;
+  std::unordered_multimap<NodeId, Connection::Ptr> connections_;
 };
 
 } // namespace net

@@ -256,14 +256,10 @@ void Host::StartAccept() {
   }
 }
 
-bool Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
+void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   Guard g(conn_mux_);
-  if (connections_.find(remote_node) != connections_.end()) {
-    LOG(DEBUG) << "Connection has been already established for " << IdToBase58(remote_node);
-    return false;
-  }
-
   connections_.insert(std::make_pair(remote_node, new_conn));
+
   if (!new_conn->IsActive()) {
     new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
@@ -280,7 +276,6 @@ bool Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
     }
     send_queue_.erase(it);
   }
-  return true;
 }
 
 void Host::OnDisconnected(const NodeId& remote_node) {
