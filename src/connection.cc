@@ -25,6 +25,7 @@ void Connection::StartRead() {
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header reseived";
+              Close();
               return;
             }
 
@@ -35,21 +36,38 @@ void Connection::StartRead() {
                         return;
                       }
 
-                      if (packet_.IsRegistration() && !host_.AddConnection(packet_.header.sender, self)) {
+                      bool is_reg = packet_.IsRegistration();
+
+                      if (!registation_passed_) {
+                        if (!is_reg || !host_.OnConnected(packet_.header.sender, self)) {
+                          Close();
+                          return;
+                        } else {
+                          registation_passed_ = true;
+                          StartRead();
+                          return;
+                        }
+                      }
+
+                      if (is_reg) {
+                        LOG(DEBUG) << "Reg packet recieved, when registartion passed.";
                         Close();
                         return;
-                      } else {
-                        host_.OnPacketReceived(std::move(packet_));
                       }
+
+                      host_.OnPacketReceived(std::move(packet_));
                       packet_ = Packet();
                       StartRead();
-                    });
-         });
+                    }
+            );
+         }
+  );
 }
 
 bool Connection::CheckRead(const boost::system::error_code& er, size_t expected, size_t len) {
   if (er && er.category() != ba::error::get_misc_category() && er.value() != ba::error::eof) {
     LOG(DEBUG) << "Error reading " << er.value() << ", " << er.message();
+    Close();
     return false;
   }
 
@@ -107,13 +125,15 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
    s.Put(reg_pack);
    send_queue_.push_back(s.GetData());
   }
-  socket_.async_connect(ep, [this, self](const boost::system::error_code& err) {
+  socket_.async_connect(ep, [this, self, id = reg_pack.header.receiver](const boost::system::error_code& err) {
                               if (err) {
                                 LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
                                            << ", " << err.message();
                                 return;
                               }
+
                               StartWrite();
+                              StartRead();
                             }
   );
 }

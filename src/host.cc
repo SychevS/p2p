@@ -39,13 +39,9 @@ void Host::Run() {
 void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {
   switch (event) {
     case RoutingTableEventType::kNodeFound : {
-      Guard g(send_mux_);
-      auto& packets = send_queue_[node.id];
-      for (size_t i = 0; i < packets.size(); ++i) {
-        SendPacket(node, std::move(packets[i]));
-        --packets_to_send_;
+      if (!IsConnected(node.id)) {
+        Connect(node);
       }
-      send_queue_.erase(node.id);
       break;
     }
 
@@ -146,18 +142,36 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* rece
 }
 
 void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
-  Guard g(out_mux_);
-  auto it = write_connections_.find(receiver.id);
-  if (it == write_connections_.end()) {
-    auto new_conn = Connection::Create(*this, io_);
-    write_connections_.insert(std::make_pair(receiver.id, new_conn));
-    new_conn->Connect(Connection::Endpoint(receiver.address, receiver.tcp_port),
-                      FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &receiver.id)); // @TODO Form reg packet
-    new_conn->Send(std::move(pack));
-    LOG(INFO) << "New write connection with " << IdToBase58(receiver.id);
-  } else {
-    it->second->Send(std::move(pack));
+  auto conn = IsConnected(receiver.id);
+  if (conn) {
+    conn->Send(std::move(pack));
+    return;
   }
+
+  Guard g(send_mux_);
+  if (packets_to_send_ >= kMaxSendQueueSize_) {
+     LOG(INFO) << "Drop packet to " << IdToBase58(receiver.id) << ", send queue limit.";
+     return;
+  }
+  send_queue_[receiver.id].push_back(std::move(pack));
+  ++packets_to_send_;
+
+  Connect(receiver);
+}
+
+Connection::Ptr Host::IsConnected(const NodeId& peer) {
+  Guard g(conn_mux_);
+  auto it = connections_.find(peer);
+  if (it != connections_.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
+
+void Host::Connect(const NodeEntrance& peer) {
+  auto new_conn = Connection::Create(*this, io_, true);
+  new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
+                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
@@ -230,9 +244,10 @@ void Host::StartAccept() {
                                LOG(INFO) << "Block connection from banned address "
                                          << sock.remote_endpoint().address().to_string();
                                StartAccept();
+                               return;
                              }
 
-                             auto new_conn = Connection::Create(*this, std::move(sock));
+                             auto new_conn = Connection::Create(*this, std::move(sock), false);
                              new_conn->StartRead();
 
                              StartAccept();
@@ -241,13 +256,37 @@ void Host::StartAccept() {
   }
 }
 
-bool Host::AddConnection(const NodeId& peer, Connection::Ptr new_conn) {
-  Guard g(in_mux_);
-  if (read_connections_.find(peer) != read_connections_.end()) {
+bool Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
+  Guard g(conn_mux_);
+  if (connections_.find(remote_node) != connections_.end()) {
+    LOG(DEBUG) << "Connection has been already established for " << IdToBase58(remote_node);
     return false;
   }
-  read_connections_.insert(std::make_pair(peer, new_conn));
-  LOG(INFO) << "New read connection with " << IdToBase58(peer);
+
+  connections_.insert(std::make_pair(remote_node, new_conn));
+  if (!new_conn->IsActive()) {
+    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
+    LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
+  } else {
+    LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
+  }
+
+  Guard g1(send_mux_);
+  auto it = send_queue_.find(remote_node);
+  if (it != send_queue_.end()) {
+    packets_to_send_ -= it->second.size();
+    for (auto& p : it->second) {
+      new_conn->Send(std::move(p));
+    }
+    send_queue_.erase(it);
+  }
   return true;
+}
+
+void Host::OnDisconnected(const NodeId& remote_node) {
+  Guard g(conn_mux_);
+  if (connections_.erase(remote_node)) {
+    LOG(INFO) << IdToBase58(remote_node) << " disconnected";
+  }
 }
 } // namespace net

@@ -15,11 +15,12 @@ class Connection : public std::enable_shared_from_this<Connection> {
   using Ptr = std::shared_ptr<Connection>;
   using Endpoint = bi::tcp::endpoint;
 
-  static auto Create(Host& h, ba::io_context& io) {
-    return Ptr(new Connection(h, io));
+  static auto Create(Host& h, ba::io_context& io, bool active) {
+    return Ptr(new Connection(h, io, active));
   }
-  static auto Create(Host& h, bi::tcp::socket&& s) {
-    return Ptr(new Connection(h, std::move(s)));
+
+  static auto Create(Host& h, bi::tcp::socket&& s, bool active) {
+    return Ptr(new Connection(h, std::move(s), active));
   }
 
   void Connect(const Endpoint&, Packet&& reg_pack);
@@ -30,9 +31,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Send(Packet&&);
   void StartRead();
 
+  bool IsActive() const noexcept { return active_; }
+
  private:
-  Connection(Host& h, ba::io_context& io) : host_(h), socket_(io) {}
-  Connection(Host& h, bi::tcp::socket&& s) : host_(h), socket_(std::move(s)) {}
+  Connection(Host& h, ba::io_context& io, bool active)
+      : host_(h), socket_(io), active_(active) {}
+
+  Connection(Host& h, bi::tcp::socket&& s, bool active)
+      : host_(h), socket_(std::move(s)), active_(active) {}
 
   void StartWrite();
   bool CheckRead(const boost::system::error_code&, size_t expected, size_t len);
@@ -43,6 +49,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   Mutex send_mux_;
   std::deque<ByteVector> send_queue_;
+
+  std::atomic<bool> registation_passed_ = false;
+  const bool active_;
 };
 } // namespace net
 #endif // NET_CONNECTION_H

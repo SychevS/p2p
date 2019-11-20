@@ -36,7 +36,9 @@ class Host : public RoutingTableEventHandler {
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
   void OnPacketReceived(Packet&&);
 
-  bool AddConnection(const NodeId&, Connection::Ptr);
+  // returns true if new connection has been added to host's connection list
+  bool OnConnected(const NodeId& remote_node, Connection::Ptr);
+  void OnDisconnected(const NodeId& remote_node);
 
  private:
   void DeterminePublic();
@@ -48,6 +50,9 @@ class Host : public RoutingTableEventHandler {
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId* receiver = nullptr);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
   bool IsBanned(const bi::address&) { return false; }
+  void Ban(const bi::address&) {}
+  void Connect(const NodeEntrance&);
+  Connection::Ptr IsConnected(const NodeId&);
 
   ba::io_context io_;
   const Config net_config_;
@@ -67,10 +72,8 @@ class Host : public RoutingTableEventHandler {
 
   std::thread working_thread_;
 
-  Mutex out_mux_;
-  Mutex in_mux_;
-  std::unordered_map<NodeId, Connection::Ptr> write_connections_;
-  std::unordered_map<NodeId, Connection::Ptr> read_connections_;
+  Mutex conn_mux_;
+  std::unordered_map<NodeId, Connection::Ptr> connections_;
 };
 
 } // namespace net
