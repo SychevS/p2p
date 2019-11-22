@@ -2,8 +2,11 @@
 #define NET_ROUTING_TABLE_H
 
 #include <atomic>
+#include <chrono>
+#include <list>
 #include <map>
 #include <set>
+#include <thread>
 #include <vector>
 
 #include "common.h"
@@ -55,7 +58,9 @@ class RoutingTable : public UdpSocketEventHandler {
   static constexpr uint8_t kBroadcastReplication = 3;
 
  private:
-  static constexpr uint8_t kPingExpirationSeconds = 60;
+  static constexpr uint8_t kMaxPingsBeforeRemove = 3;
+  static constexpr std::chrono::seconds kPingExpirationSeconds{8};
+  static constexpr std::chrono::seconds kDiscoveryInterval{60};
 
   uint16_t KBucketIndex(const NodeId& id) const noexcept;
   static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
@@ -72,10 +77,13 @@ class RoutingTable : public UdpSocketEventHandler {
 
   void UpdateKBuckets(const NodeEntrance&);
   void UpdateKBuckets(const std::vector<NodeEntrance>&);
-  void TrySwap(const NodeEntrance& new_node, const NodeEntrance& old_node,
-               KBucket& bucket);
+  void SendPing(const NodeEntrance& target, KBucket& bucket,
+                std::shared_ptr<NodeEntrance> replacer = nullptr);
 
   void NotifyHost(const NodeEntrance& node, RoutingTableEventType);
+
+  void DiscoveryRoutine();
+  void PingRoutine();
 
   // Returns k closest nodes to target id.
   // Or total_nodes_ nodes if total_nodes_ < k.
@@ -86,7 +94,7 @@ class RoutingTable : public UdpSocketEventHandler {
   RoutingTableEventHandler& host_;
 
   Mutex ping_mux_;
-  std::set<NodeId> ping_sent_;
+  std::map<NodeId, uint8_t> ping_sent_;
 
   Mutex k_bucket_mux_;
   KBucket* k_buckets_;
@@ -97,6 +105,21 @@ class RoutingTable : public UdpSocketEventHandler {
   std::map<NodeId, std::vector<NodeId>> find_node_sent_;
 
   const uint16_t kBucketsNum;
+
+  struct Timer {
+    ba::deadline_timer clock;
+    bool expired;
+
+    Timer(ba::io_context& io, size_t seconds)
+        : clock(io, boost::posix_time::seconds(seconds)),
+          expired(false) {}
+  };
+
+  Mutex timers_mux_;
+  std::list<Timer> ping_timers_;
+
+  std::thread discovery_thread_;
+  std::thread ping_thread_;
 };
 
 inline NodeId RoutingTable::Distance(const NodeId& a, const NodeId& b) {

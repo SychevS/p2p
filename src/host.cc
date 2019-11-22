@@ -32,8 +32,7 @@ void Host::Run() {
           net_config_.use_default_boot_nodes ?
           GetDefaultBootNodes() : net_config_.custom_boot_nodes);
 
-  std::thread t([this] { io_.run(); }); 
-  working_thread_ = std::move(t);
+  working_thread_ = std::thread([this] { io_.run(); });
 }
 
 void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {
