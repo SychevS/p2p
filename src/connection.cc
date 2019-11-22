@@ -141,6 +141,7 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
                               if (err) {
                                 LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
                                            << ", " << err.message();
+                                host_.OnPendingConnectionError(id);
                                 return;
                               }
 

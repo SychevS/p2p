@@ -169,6 +169,12 @@ Connection::Ptr Host::IsConnected(const NodeId& peer) {
 }
 
 void Host::Connect(const NodeEntrance& peer) {
+  if (HasPendingConnection(peer.id)) {
+    return;
+  }
+
+  AddToPendingConn(peer.id);
+
   auto new_conn = Connection::Create(*this, io_, true);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
                     FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
@@ -266,6 +272,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
   } else {
     LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
+    RemoveFromPendingConn(remote_node);
   }
 
   Guard g1(send_mux_);
@@ -291,5 +298,37 @@ void Host::OnConnectionDropped(const NodeId& remote_node, bool active) {
       ++it;
     }
   }
+
+  if (!connections_.count(remote_node)) {
+    ClearSendQueue(remote_node);
+  }
+}
+
+void Host::ClearSendQueue(const NodeId& id) {
+  Guard g(send_mux_);
+  auto it = send_queue_.find(id);
+  if (it != send_queue_.end()) {
+    packets_to_send_ -= it->second.size();
+    send_queue_.erase(it);
+  }
+}
+
+void Host::OnPendingConnectionError(const NodeId& id) {
+  ClearSendQueue(id);
+}
+
+void Host::RemoveFromPendingConn(const NodeId& id) {
+  Guard g(pend_conn_mux_);
+  pending_connections_.erase(id);
+}
+
+bool Host::HasPendingConnection(const NodeId& id) {
+  Guard g(pend_conn_mux_);
+  return pending_connections_.find(id) != pending_connections_.end();
+}
+
+void Host::AddToPendingConn(const NodeId& id) {
+  Guard g(pend_conn_mux_);
+  pending_connections_.insert(id);
 }
 } // namespace net

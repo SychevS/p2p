@@ -38,20 +38,31 @@ class Host : public RoutingTableEventHandler {
 
   void OnConnected(const NodeId& remote_node, Connection::Ptr);
   void OnConnectionDropped(const NodeId& remote_node, bool active);
+  void OnPendingConnectionError(const NodeId&);
 
  private:
   void DeterminePublic();
   void TcpListen();
   void StartAccept();
+
   void SendDirect(const NodeEntrance&, const Packet&);
   bool IsDuplicate(Packet::Id);
   void InsertNewBroadcastId(Packet::Id);
+
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId* receiver = nullptr);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
+
   bool IsBanned(const bi::address&) { return false; }
   void Ban(const bi::address&) {}
+
   void Connect(const NodeEntrance&);
   Connection::Ptr IsConnected(const NodeId&);
+
+  void RemoveFromPendingConn(const NodeId&);
+  bool HasPendingConnection(const NodeId&);
+  void AddToPendingConn(const NodeId&);
+
+  void ClearSendQueue(const NodeId&);
 
   ba::io_context io_;
   const Config net_config_;
@@ -73,6 +84,9 @@ class Host : public RoutingTableEventHandler {
 
   Mutex conn_mux_;
   std::unordered_multimap<NodeId, Connection::Ptr> connections_;
+
+  Mutex pend_conn_mux_;
+  std::unordered_set<NodeId> pending_connections_;
 };
 
 } // namespace net
