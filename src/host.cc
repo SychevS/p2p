@@ -59,20 +59,20 @@ void Host::OnPacketReceived(Packet&& packet) {
   if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   } else if (packet.IsBroadcast() && !IsDuplicate(packet.header.packet_id)) {
-    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-
-    auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
+    auto sender = packet.header.sender;
+    auto nodes = routing_table_->GetBroadcastList(sender);
     packet.header.sender = my_contacts_.id;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
+
+    event_handler_.OnMessageReceived(sender, std::move(packet.data));
   }
 }
 
 bool Host::IsDuplicate(Packet::Id id) {
   Guard g(broadcast_id_mux_);
-  auto it = broadcast_ids_.find(id);
-  if (it == broadcast_ids_.end()) {
+  if (broadcast_ids_.find(id) == broadcast_ids_.end()) {
     InsertNewBroadcastId(id);
     return false;
   }
@@ -316,6 +316,7 @@ void Host::ClearSendQueue(const NodeId& id) {
 
 void Host::OnPendingConnectionError(const NodeId& id) {
   ClearSendQueue(id);
+  RemoveFromPendingConn(id);
 }
 
 void Host::RemoveFromPendingConn(const NodeId& id) {

@@ -4,16 +4,22 @@
 
 namespace net {
 
-void Connection::Close(bool notify_host) {
-  if (notify_host) {
-    host_.OnConnectionDropped(remote_node_, active_);
-  }
-
+void Connection::Close() {
   try {
     boost::system::error_code ec;
     socket_.shutdown(bi::tcp::socket::shutdown_both, ec);
     if (socket_.is_open()) socket_.close();
   } catch (...) {}
+}
+
+void Connection::Drop() {
+  if (registation_passed_) {
+    host_.OnConnectionDropped(remote_node_, active_);
+  } else if (active_) {
+    host_.OnPendingConnectionError(remote_node_);
+  }
+
+  Close();
 }
 
 void Connection::StartRead() {
@@ -24,14 +30,14 @@ void Connection::StartRead() {
           [this, self](const boost::system::error_code& er, size_t len) {
             if (!CheckRead(er, Packet::kHeaderSize, len)) {
               LOG(DEBUG) << "Header check read failded.";
-              Close(registation_passed_);
+              Drop();
               return;
             }
 
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header reseived";
-              Close(registation_passed_);
+              Drop();
               return;
             }
 
@@ -40,7 +46,7 @@ void Connection::StartRead() {
                     [this, self](const boost::system::error_code& er, size_t len) {
                       if (!CheckRead(er, packet_.header.data_size, len)) {
                         LOG(DEBUG) << "Packet data check read failed.";
-                        Close(registation_passed_);
+                        Drop();
                         return;
                       }
 
@@ -48,12 +54,15 @@ void Connection::StartRead() {
 
                       if (!registation_passed_) {
                         if (!is_reg) {
-                          Close(registation_passed_);
+                          Drop();
                           return;
                         } else {
                           registation_passed_ = true;
                           host_.OnConnected(packet_.header.sender, self);
-                          remote_node_ = packet_.header.sender;
+
+                          if (!active_) {
+                            remote_node_ = packet_.header.sender;
+                          }
                           StartRead();
                           return;
                         }
@@ -61,7 +70,7 @@ void Connection::StartRead() {
 
                       if (is_reg) {
                         LOG(DEBUG) << "Reg packet recieved, when registartion passed.";
-                        Close(registation_passed_);
+                        Drop();
                         return;
                       }
 
@@ -117,6 +126,8 @@ void Connection::StartWrite() {
         if (err) {
           LOG(DEBUG) << "Cannot send packet, reason " << err.value()
                      << ", " << err.message();
+          Drop();
+          return;
         }
 
         Guard g(send_mux_);
@@ -130,6 +141,8 @@ void Connection::StartWrite() {
 }
 
 void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
+  remote_node_ = reg_pack.header.receiver;
+
   Ptr self(shared_from_this());
   {
    Guard g(send_mux_);
@@ -137,11 +150,11 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
    s.Put(reg_pack);
    send_queue_.push_back(s.GetData());
   }
-  socket_.async_connect(ep, [this, self, id = reg_pack.header.receiver](const boost::system::error_code& err) {
+  socket_.async_connect(ep, [this, self](const boost::system::error_code& err) {
                               if (err) {
                                 LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
                                            << ", " << err.message();
-                                host_.OnPendingConnectionError(id);
+                                Drop();
                                 return;
                               }
 

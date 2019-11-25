@@ -26,7 +26,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   void Connect(const Endpoint&, Packet&& reg_pack);
 
   ~Connection() { Close(); }
-  void Close(bool notify_host = false);
+  void Close();
 
   void Send(Packet&&);
   void StartRead();
@@ -43,6 +43,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartWrite();
   bool CheckRead(const boost::system::error_code&, size_t expected, size_t len);
+  void Drop();
 
   Host& host_;
   bi::tcp::socket socket_;

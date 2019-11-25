@@ -274,7 +274,7 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
   auto callback = [this, &target, replacer, &bucket, &timer](const boost::system::error_code& e) mutable {
                     bool resendPing = true;
                     {
-                      Guard g(ping_mux_);
+                      std::scoped_lock g(ping_mux_, k_bucket_mux_);
 
                       if (e) {
                         ping_sent_.erase(target.id);
@@ -290,7 +290,6 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
                         resendPing = false;
                         ping_sent_.erase(it);
 
-                        Guard g(k_bucket_mux_);
                         bucket.Evict(target.id);
                         NotifyHost(target, RoutingTableEventType::kNodeRemoved);
 
@@ -299,8 +298,10 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
                           NotifyHost(*replacer, RoutingTableEventType::kNodeAdded);
                         }
                       }
+                    }
 
-                      Guard lk(timers_mux_);
+                    {
+                      Guard g(timers_mux_);
                       timer.expired = true;
                     }
 

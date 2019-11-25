@@ -14,7 +14,7 @@ using ByteArray = std::array<uint8_t, SIZE>;
 using ByteVector = std::vector<uint8_t>;
 
 using Mutex = std::mutex;
-using Guard = std::lock_guard<std::mutex>;
+using Guard = std::lock_guard<Mutex>;
 
 } // namespace net
 #endif // NET_TYPES_H
