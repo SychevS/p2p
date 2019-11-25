@@ -58,7 +58,7 @@ void RoutingTable::PingRoutine() {
     std::this_thread::sleep_for(kPingExpirationSeconds);
 
     {
-      Guard g(ping_mux_);
+      Guard g(timers_mux_);
       for (auto it = ping_timers_.begin(); it != ping_timers_.end();) {
         if (it->expired) it = ping_timers_.erase(it);
         else ++it;
@@ -70,6 +70,11 @@ void RoutingTable::PingRoutine() {
       if (k_buckets_[current_bucket].Size()) break;
     }
 
+    if (current_bucket == kBucketsNum) {
+      current_bucket = 0;
+      continue;
+    }
+
     auto& bucket = k_buckets_[current_bucket];
     auto& nodes = bucket.GetNodes();
     for (auto& n : nodes) {
@@ -77,7 +82,6 @@ void RoutingTable::PingRoutine() {
     }
 
     ++current_bucket;
-    if (current_bucket >= kBucketsNum) current_bucket = 0;
   }
 }
 
@@ -251,7 +255,6 @@ void RoutingTable::UpdateKBuckets(const NodeEntrance& node) {
 
 void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::shared_ptr<NodeEntrance> replacer) {
   PingDatagram ping(host_data_);
-  socket_->Send(ping.ToUdp(target));
   {
    Guard g(ping_mux_);
    auto it = ping_sent_.find(target.id);
@@ -261,6 +264,8 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
      ping_sent_.insert(std::make_pair(target.id, replacer ? kMaxPingsBeforeRemove : 0));
    }
   }
+
+  socket_->Send(ping.ToUdp(target));
 
   Guard g(timers_mux_);
   ping_timers_.emplace_back(io_, kPingExpirationSeconds.count());

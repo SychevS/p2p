@@ -49,6 +49,7 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
       break;
 
     case RoutingTableEventType::kNodeRemoved :
+      LOG(INFO) << "Node " << IdToBase58(node.id) << " removed from routing table.";
       event_handler_.OnNodeRemoved(node.id);
       break;
   }
