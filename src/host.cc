@@ -59,12 +59,13 @@ void Host::OnPacketReceived(Packet&& packet) {
   if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   } else if (packet.IsBroadcast() && !IsDuplicate(packet.header.packet_id)) {
+    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
+
     auto nodes = routing_table_->GetBroadcastList(packet.header.sender);
     packet.header.sender = my_contacts_.id;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
-    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   }
 }
 
