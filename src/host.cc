@@ -176,7 +176,7 @@ void Host::Connect(const NodeEntrance& peer) {
 
   AddToPendingConn(peer.id);
 
-  auto new_conn = Connection::Create(*this, io_, true);
+  auto new_conn = Connection::Create(*this, io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
                     FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
   LOG(INFO) << "Try connect to " << IdToBase58(peer.id);
@@ -255,7 +255,7 @@ void Host::StartAccept() {
                                return;
                              }
 
-                             auto new_conn = Connection::Create(*this, std::move(sock), false);
+                             auto new_conn = Connection::Create(*this, io_, std::move(sock));
                              new_conn->StartRead();
 
                              StartAccept();

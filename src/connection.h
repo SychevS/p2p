@@ -15,12 +15,12 @@ class Connection : public std::enable_shared_from_this<Connection> {
   using Ptr = std::shared_ptr<Connection>;
   using Endpoint = bi::tcp::endpoint;
 
-  static auto Create(Host& h, ba::io_context& io, bool active) {
-    return Ptr(new Connection(h, io, active));
+  static auto Create(Host& h, ba::io_context& io) {
+    return Ptr(new Connection(h, io));
   }
 
-  static auto Create(Host& h, bi::tcp::socket&& s, bool active) {
-    return Ptr(new Connection(h, std::move(s), active));
+  static auto Create(Host& h, ba::io_context& io, bi::tcp::socket&& s) {
+    return Ptr(new Connection(h, io, std::move(s)));
   }
 
   void Connect(const Endpoint&, Packet&& reg_pack);
@@ -35,15 +35,18 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool IsConnected() const;
 
  private:
-  Connection(Host& h, ba::io_context& io, bool active)
-      : host_(h), socket_(io), active_(active) {}
+  constexpr static uint16_t kTimeoutSeconds = 5;
 
-  Connection(Host& h, bi::tcp::socket&& s, bool active)
-      : host_(h), socket_(std::move(s)), active_(active) {}
+  // active connection
+  Connection(Host&, ba::io_context&);
+  // passive connection
+  Connection(Host&, ba::io_context&, bi::tcp::socket&&);
 
   void StartWrite();
   bool CheckRead(const boost::system::error_code&, size_t expected, size_t len);
   void Drop();
+
+  void ResetTimer();
 
   Host& host_;
   bi::tcp::socket socket_;
@@ -53,9 +56,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
   std::deque<ByteVector> send_queue_;
 
   std::atomic<bool> registation_passed_ = false;
+  std::atomic<bool> dropped_ = false;
   const bool active_;
 
   NodeId remote_node_;
+  ba::deadline_timer deadline_;
 };
 } // namespace net
 #endif // NET_CONNECTION_H
