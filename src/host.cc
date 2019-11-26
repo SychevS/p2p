@@ -179,7 +179,6 @@ void Host::Connect(const NodeEntrance& peer) {
   auto new_conn = Connection::Create(*this, io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
                     FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
-  LOG(INFO) << "Try connect to " << IdToBase58(peer.id);
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
@@ -287,14 +286,16 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   }
 }
 
-void Host::OnConnectionDropped(const NodeId& remote_node, bool active) {
+void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
+                               Connection::DropReason drop_reason) {
   Guard g(conn_mux_);
   auto range = connections_.equal_range(remote_node);
   for (auto it = range.first; it != range.second;) {
     if (it->second->IsActive() == active) {
       it = connections_.erase(it);
       LOG(INFO) << "Connection with " << IdToBase58(remote_node)
-                << " was closed, active: " << active << ".";
+                << " was closed, active: " << active << ". Reason: "
+                << Connection::DropReasonToString(drop_reason);
     } else {
       ++it;
     }
@@ -314,7 +315,9 @@ void Host::ClearSendQueue(const NodeId& id) {
   }
 }
 
-void Host::OnPendingConnectionError(const NodeId& id) {
+void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason drop_reason) {
+  LOG(INFO) << "Pending connection with " << IdToBase58(id)
+            << " was closed, reason " << Connection::DropReasonToString(drop_reason);
   ClearSendQueue(id);
   RemoveFromPendingConn(id);
 }

@@ -25,7 +25,7 @@ void Connection::ResetTimer() {
                       return;
                     }
 
-                    Drop();
+                    Drop(DropReason::kTimeout);
                   };
 
   size_t waiters = deadline_.expires_from_now(boost::posix_time::seconds(kTimeoutSeconds));
@@ -50,14 +50,16 @@ void Connection::Close() {
   } catch (...) {}
 }
 
-void Connection::Drop() {
+void Connection::Drop(DropReason reason) {
   if (dropped_) return;
   dropped_ = true;
 
   if (registation_passed_) {
-    host_.OnConnectionDropped(remote_node_, active_);
+    host_.OnConnectionDropped(remote_node_, active_, reason);
   } else if (active_) {
-    host_.OnPendingConnectionError(remote_node_);
+    host_.OnPendingConnectionError(remote_node_, reason);
+  } else {
+    LOG(INFO) << "Drop passive connection registration passed: " << registation_passed_;
   }
 
   Close();
@@ -77,14 +79,14 @@ void Connection::StartRead() {
 
             if (!CheckRead(er, Packet::kHeaderSize, len)) {
               LOG(DEBUG) << "Header check read failded.";
-              Drop();
+              Drop(kReadError);
               return;
             }
 
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header reseived";
-              Drop();
+              Drop(kReadError);
               return;
             }
 
@@ -98,7 +100,7 @@ void Connection::StartRead() {
 
                       if (!CheckRead(er, packet_.header.data_size, len)) {
                         LOG(DEBUG) << "Packet data check read failed.";
-                        Drop();
+                        Drop(kReadError);
                         return;
                       }
 
@@ -106,7 +108,7 @@ void Connection::StartRead() {
 
                       if (!registation_passed_) {
                         if (!is_reg) {
-                          Drop();
+                          Drop(kProtocolCorrupted);
                           return;
                         } else {
                           registation_passed_ = true;
@@ -122,7 +124,7 @@ void Connection::StartRead() {
 
                       if (is_reg) {
                         LOG(DEBUG) << "Reg packet recieved, when registartion passed.";
-                        Drop();
+                        Drop(kProtocolCorrupted);
                         return;
                       }
 
@@ -183,7 +185,7 @@ void Connection::StartWrite() {
         if (err) {
           LOG(DEBUG) << "Cannot send packet, reason " << err.value()
                      << ", " << err.message();
-          Drop();
+          Drop(kWriteError);
           return;
         }
 
@@ -207,6 +209,8 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
    s.Put(reg_pack);
    send_queue_.push_back(s.GetData());
   }
+
+  ResetTimer();
   socket_.async_connect(ep, [this, self](const boost::system::error_code& err) {
                               if (dropped_) {
                                 return;
@@ -216,7 +220,7 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
                               if (err) {
                                 LOG(DEBUG) << "Cannot connect to peer, reason " << err.value()
                                            << ", " << err.message();
-                                Drop();
+                                Drop(kConnectionError);
                                 return;
                               }
 
@@ -224,5 +228,16 @@ void Connection::Connect(const Endpoint& ep, Packet&& reg_pack) {
                               StartRead();
                             }
   );
+}
+
+std::string Connection::DropReasonToString(DropReason reason) {
+  switch (reason) {
+    case kTimeout: return "Connection timeout.";
+    case kReadError: return "Read error.";
+    case kWriteError: return "Write error.";
+    case kProtocolCorrupted: return "Connection protocol was corrupted by remote node.";
+    case kConnectionError: return "Cannot connect to remote node.";
+  }
+  return "Unknown error";
 }
 } // namespace net

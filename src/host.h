@@ -37,8 +37,8 @@ class Host : public RoutingTableEventHandler {
   void OnPacketReceived(Packet&&);
 
   void OnConnected(const NodeId& remote_node, Connection::Ptr);
-  void OnConnectionDropped(const NodeId& remote_node, bool active);
-  void OnPendingConnectionError(const NodeId&);
+  void OnConnectionDropped(const NodeId& remote_node, bool active, Connection::DropReason);
+  void OnPendingConnectionError(const NodeId&, Connection::DropReason);
 
  private:
   void DeterminePublic();

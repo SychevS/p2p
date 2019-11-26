@@ -3,6 +3,7 @@
 
 #include <deque>
 #include <memory>
+#include <string>
 
 #include "common.h"
 
@@ -14,6 +15,16 @@ class Connection : public std::enable_shared_from_this<Connection> {
  public:
   using Ptr = std::shared_ptr<Connection>;
   using Endpoint = bi::tcp::endpoint;
+
+  enum DropReason : uint8_t {
+    kTimeout,
+    kReadError,
+    kWriteError,
+    kProtocolCorrupted,
+    kConnectionError
+  };
+
+  static std::string DropReasonToString(DropReason);
 
   static auto Create(Host& h, ba::io_context& io) {
     return Ptr(new Connection(h, io));
@@ -44,7 +55,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void StartWrite();
   bool CheckRead(const boost::system::error_code&, size_t expected, size_t len);
-  void Drop();
+  void Drop(DropReason);
 
   void ResetTimer();
 
