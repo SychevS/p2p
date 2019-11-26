@@ -178,7 +178,7 @@ void Host::Connect(const NodeEntrance& peer) {
 
   auto new_conn = Connection::Create(*this, io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
-                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
+                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &peer.id));
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
