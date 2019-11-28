@@ -89,6 +89,7 @@ void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
   if (total_nodes_.load() == 0) {
     StartFindNode(host_data_.id, &nodes);
   } else {
+    Guard g(k_bucket_mux_);
     for (auto& n : nodes) {
       SendPing(n, k_buckets_[KBucketIndex(n.id)]);
     }
@@ -169,6 +170,7 @@ void RoutingTable::HandlePing(const KademliaDatagram& d) {
 }
 
 void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
+  Guard g(ping_mux_);
   auto it = ping_sent_.find(d.node_from.id);
   if (it != ping_sent_.end()) {
     ping_sent_.erase(it);
@@ -322,17 +324,20 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
   std::multiset<std::pair<uint16_t, NodeEntrance>, decltype(comparator)>
       nearest_nodes(comparator);
 
-  for (size_t i = 0; i < kBucketsNum; ++i) {
-    auto& nodes = k_buckets_[i].GetNodes();
-    std::for_each(nodes.begin(), nodes.end(),
-                    [&nearest_nodes, &target](const NodeEntrance& node) {
-                      nearest_nodes.insert(
-                        std::make_pair(RoutingTable::KBucketIndex(target, node.id), node));
+  {
+   Guard g(k_bucket_mux_);
+   for (size_t i = 0; i < kBucketsNum; ++i) {
+     auto& nodes = k_buckets_[i].GetNodes();
+     std::for_each(nodes.begin(), nodes.end(),
+                     [&nearest_nodes, &target](const NodeEntrance& node) {
+                       nearest_nodes.insert(
+                         std::make_pair(RoutingTable::KBucketIndex(target, node.id), node));
 
-                      if (nearest_nodes.size() > k) {
-                        nearest_nodes.erase(--nearest_nodes.end());
-                      }
-                    });
+                       if (nearest_nodes.size() > k) {
+                         nearest_nodes.erase(--nearest_nodes.end());
+                       }
+                     });
+   }
   }
 
   std::vector<NodeEntrance> ret;
