@@ -45,11 +45,12 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
     }
 
     case RoutingTableEventType::kNodeAdded :
+      LOG(INFO) << "ROUTING TABLE: add " << IdToBase58(node.id);
       event_handler_.OnNodeDiscovered(node.id);
       break;
 
     case RoutingTableEventType::kNodeRemoved :
-      LOG(INFO) << "Node " << IdToBase58(node.id) << " removed from routing table.";
+      LOG(INFO) << "ROUTING TABLE: remove " << IdToBase58(node.id);
       event_handler_.OnNodeRemoved(node.id);
       break;
   }

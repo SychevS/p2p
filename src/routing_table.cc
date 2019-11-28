@@ -111,10 +111,10 @@ void RoutingTable::StartFindNode(const NodeId& id, const std::vector<NodeEntranc
   auto nearest_nodes = NearestNodes(id);
   auto& nodes = find_list ? *find_list : nearest_nodes;
 
+  FindNodeDatagram d(host_data_, id);
   for (auto& n : nodes) {
-    FindNodeDatagram d(host_data_, id);
-    socket_->Send(d.ToUdp(n));
     nodes_to_query.push_back(n.id);
+    socket_->Send(d.ToUdp(n));
   }
 }
 
@@ -343,7 +343,7 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
 }
 
 void RoutingTable::NotifyHost(const NodeEntrance& node, RoutingTableEventType event) {
-  std::thread t([this, &node, event]() {
+  std::thread t([this, node, event]() {
                   host_.HandleRoutTableEvent(node, event);
                 });
   t.detach();
