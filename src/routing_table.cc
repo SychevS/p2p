@@ -170,13 +170,20 @@ void RoutingTable::HandlePing(const KademliaDatagram& d) {
 }
 
 void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
-  Guard g(ping_mux_);
-  auto it = ping_sent_.find(d.node_from.id);
-  if (it != ping_sent_.end()) {
-    ping_sent_.erase(it);
+  bool good_resp = false;
+  {
+   Guard g(ping_mux_);
+   auto it = ping_sent_.find(d.node_from.id);
+   if (it != ping_sent_.end()) {
+     ping_sent_.erase(it);
+     good_resp = true;
+   } else {
+     LOG(DEBUG) << "Unexpected ping response.";
+   }
+  }
+
+  if (good_resp) {
     UpdateKBuckets(d.node_from);
-  } else {
-    LOG(DEBUG) << "Unexpected ping response.";
   }
 }
 
