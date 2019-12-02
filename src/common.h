@@ -75,7 +75,7 @@ struct Packet {
     Type type;
     size_t data_size;
     NodeId sender;
-    NodeId receiver;
+    NodeId receiver; // in broadcast case is last resender
     Id packet_id;
     uint32_t reserved;
   };

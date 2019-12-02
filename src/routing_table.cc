@@ -123,21 +123,16 @@ std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_
   std::vector<NodeEntrance> ret;
   uint16_t index = KBucketIndex(received_from);
   if (!index) index = kBucketsNum;
-  uint16_t mask = 0x8000;
-  while (!(mask & index)) {
-    mask >>= 1;
-  }
+
   Guard g(k_bucket_mux_);
-  for (uint16_t i = 1; i < mask; i <<= 1) {
+  for (uint16_t i = 0; i < index; ++i) {
+    if (!k_buckets_[i].Size()) continue;
+
     uint8_t added_in_subtree = 0;
-    for (uint16_t j = i; j < mask && j < (i * 2); ++j) {
-      auto& nodes = k_buckets_[j].GetNodes();
-      auto it = nodes.begin();
-      while (it != nodes.end() && added_in_subtree < kBroadcastReplication) {
-        ret.push_back(*it);
-        ++it;
-      }
-      if (added_in_subtree == kBroadcastReplication) break;
+    auto& nodes = k_buckets_[i].GetNodes();
+    for (auto& n : nodes) {
+      ret.push_back(n);
+      if (++added_in_subtree > kBroadcastReplication) break;
     }
   }
 

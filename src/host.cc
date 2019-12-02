@@ -60,14 +60,13 @@ void Host::OnPacketReceived(Packet&& packet) {
   if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   } else if (packet.IsBroadcast() && !IsDuplicate(packet.header.packet_id)) {
-    auto sender = packet.header.sender;
-    auto nodes = routing_table_->GetBroadcastList(sender);
-    packet.header.sender = my_contacts_.id;
+    auto nodes = routing_table_->GetBroadcastList(packet.header.receiver);
+    packet.header.receiver = my_contacts_.id;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
 
-    event_handler_.OnMessageReceived(sender, std::move(packet.data));
+    event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   }
 }
 
@@ -91,6 +90,7 @@ void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
   if (receiver == my_contacts_.id) {
     return;
   }
+
   auto pack = FormPacket(Packet::Type::kDirect, std::move(data), &receiver);
 
   NodeEntrance receiver_contacts;
@@ -118,7 +118,7 @@ void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
-  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data));
+  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), &my_contacts_.id);
   {
     Guard g(broadcast_id_mux_);
     InsertNewBroadcastId(pack.header.packet_id);
@@ -269,7 +269,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   connections_.insert(std::make_pair(remote_node, new_conn));
 
   if (!new_conn->IsActive()) {
-    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}));
+    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &remote_node));
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
   } else {
     LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
