@@ -89,6 +89,9 @@ struct Packet {
   bool IsDirect() const noexcept { return header.type == kDirect; }
   bool IsBroadcast() const noexcept { return header.type == kBroadcast; }
   bool IsRegistration() const noexcept { return header.type == kRegistration; }
+  bool IsHeaderValid() const noexcept {
+    return IsDirect() || IsBroadcast() || IsRegistration();
+  }
 
   Header header;
   ByteVector data;

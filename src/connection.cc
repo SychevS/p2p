@@ -86,7 +86,7 @@ void Connection::StartRead() {
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header reseived";
-              Drop(kReadError);
+              Drop(kProtocolCorrupted);
               return;
             }
 

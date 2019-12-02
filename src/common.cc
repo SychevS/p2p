@@ -60,7 +60,8 @@ bool Packet::GetHeader(Unserializer& u) {
          u.Get(reinterpret_cast<uint8_t*>(header.sender.GetPtr()), header.sender.size()) &&
          u.Get(reinterpret_cast<uint8_t*>(header.receiver.GetPtr()), header.receiver.size()) &&
          u.Get(header.packet_id) &&
-         u.Get(header.reserved);
+         u.Get(header.reserved) &&
+         IsHeaderValid();
 }
 
 bool Packet::Get(Unserializer& u) {
