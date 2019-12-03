@@ -85,12 +85,19 @@ void Connection::StartRead() {
 
             Unserializer u(packet_.data.data(), Packet::kHeaderSize);
             if (!packet_.GetHeader(u)) {
-              LOG(DEBUG) << "Invalid header reseived";
+              LOG(DEBUG) << "Invalid header received.";
               Drop(kProtocolCorrupted);
               return;
             }
 
-            packet_.data.resize(packet_.header.data_size);
+            try {
+              packet_.data.resize(packet_.header.data_size);
+            } catch (...) {
+              LOG(DEBUG) << "Invalid header received: bad protocol.";
+              Drop(kProtocolCorrupted);
+              return;
+            }
+
             ba::async_read(socket_, ba::buffer(packet_.data, packet_.header.data_size),
                     [this, self](const boost::system::error_code& er, size_t len) {
                       if (dropped_) {
