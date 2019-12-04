@@ -4,8 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <list>
-#include <map>
-#include <set>
+#include <unordered_map>
 #include <thread>
 #include <vector>
 
@@ -45,7 +44,9 @@ class RoutingTable : public UdpSocketEventHandler {
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
   static NodeId Distance(const NodeId&, const NodeId&);
+  static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
 
+ private:
   static constexpr uint16_t kMaxDatagramSize = 1000;
 
   // k should be chosen such that any given k nodes
@@ -57,13 +58,11 @@ class RoutingTable : public UdpSocketEventHandler {
   // but whole subtrees may not receive the message
   static constexpr uint8_t kBroadcastReplication = 3;
 
- private:
   static constexpr uint8_t kMaxPingsBeforeRemove = 3;
   static constexpr std::chrono::seconds kPingExpirationSeconds{8};
   static constexpr std::chrono::seconds kDiscoveryInterval{60};
 
   uint16_t KBucketIndex(const NodeId& id) const noexcept;
-  static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
 
   void OnSocketClosed(const boost::system::error_code&) override {}
 
@@ -94,7 +93,7 @@ class RoutingTable : public UdpSocketEventHandler {
   RoutingTableEventHandler& host_;
 
   Mutex ping_mux_;
-  std::map<NodeId, uint8_t> ping_sent_;
+  std::unordered_map<NodeId, uint8_t> ping_sent_;
 
   Mutex k_bucket_mux_;
   KBucket* k_buckets_;
@@ -102,7 +101,7 @@ class RoutingTable : public UdpSocketEventHandler {
   std::atomic<size_t> total_nodes_{0};
 
   Mutex find_node_mux_;
-  std::map<NodeId, std::vector<NodeId>> find_node_sent_;
+  std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
 
   const uint16_t kBucketsNum;
 

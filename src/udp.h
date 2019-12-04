@@ -97,6 +97,15 @@ void UdpSocket<MaxDatagramSize>::Open() {
 
   socket_.open(bi::udp::v4());
   socket_.set_option(ba::socket_base::reuse_address(true));
+
+#ifdef WIN32
+  BOOL new_behavior = FALSE;
+  DWORD bytes_returned = 0;
+
+  WSAIoctl(socket_.native_handle(), SIO_UDP_CONNRESET, &new_behavior, sizeof(new_behavior), nullptr, 0, &bytes_returned, nullptr, nullptr);
+  WSAIoctl(socket_.native_handle(), SIO_UDP_NETRESET, &new_behavior, sizeof(new_behavior), nullptr, 0, &bytes_returned, nullptr, nullptr);
+#endif
+
   try {
     socket_.bind(listen_ep_);
   } catch (std::exception& e) {

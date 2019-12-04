@@ -138,7 +138,7 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* rece
   h.data_size = result.data.size();
   h.sender = my_contacts_.id;
   if (receiver) h.receiver = *receiver;
-  h.packet_id = MurmurHash2(result.data.data(), result.data.size());
+  h.packet_id = MurmurHash2(result.data.data(), static_cast<unsigned>(result.data.size()));
 
   return result;
 }
