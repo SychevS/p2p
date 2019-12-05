@@ -14,6 +14,10 @@
 #include <string>
 #include <vector>
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 class uint_error : public std::runtime_error {
 public:
     explicit uint_error(const std::string& str) : std::runtime_error(str) {}
@@ -201,6 +205,26 @@ public:
 
     int CompareTo(const base_uint& b) const;
     bool EqualTo(uint64_t b) const;
+
+    uint16_t GetCLZ() const {
+        int ret = 0;
+        for (int i = WIDTH - 1; i >= 0; i--) {
+            if (pn[i] == 0) {
+                ret += 32;
+                continue;
+            } else {
+#ifdef _MSC_VER
+		unsigned long leading_zero = 0;
+		_BitScanReverse(&leading_zero, pn[i]);
+                ret += 31 - leading_zero;
+#else
+                ret += __builtin_clz(pn[i]);
+#endif
+                break;
+            }
+        }
+        return ret;
+    }
 
     friend inline const base_uint operator+(const base_uint& a, const base_uint& b) { return base_uint(a) += b; }
     friend inline const base_uint operator-(const base_uint& a, const base_uint& b) { return base_uint(a) -= b; }

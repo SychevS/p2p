@@ -134,12 +134,7 @@ inline uint16_t RoutingTable::KBucketIndex(const NodeId& id) const noexcept {
 inline uint16_t RoutingTable::KBucketIndex(const NodeId& target,
     const NodeId& id) {
   auto distance = Distance(target, id);
-
-  uint16_t res = 0;
-  while ((distance >>= 1) > 0) {
-    ++res;
-  }
-  return res;
+  return distance.GetCLZ();
 }
 
 } // namespace net
