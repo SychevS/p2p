@@ -114,8 +114,10 @@ class RoutingTable : public UdpSocketEventHandler {
           expired(false) {}
   };
 
+  using TimerPtr = std::shared_ptr<Timer>;
+
   Mutex timers_mux_;
-  std::list<Timer> ping_timers_;
+  std::list<TimerPtr> ping_timers_;
 
   std::thread discovery_thread_;
   std::thread ping_thread_;

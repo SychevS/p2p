@@ -60,7 +60,7 @@ void RoutingTable::PingRoutine() {
     {
       Guard g(timers_mux_);
       for (auto it = ping_timers_.begin(); it != ping_timers_.end();) {
-        if (it->expired) it = ping_timers_.erase(it);
+        if ((*it)->expired) it = ping_timers_.erase(it);
         else ++it;
       }
     }
@@ -272,10 +272,15 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
   socket_->Send(ping.ToUdp(target));
 
   Guard g(timers_mux_);
-  ping_timers_.emplace_back(io_, kPingExpirationSeconds.count());
-  auto& timer = ping_timers_.back();
+  ping_timers_.push_back(std::make_shared<Timer>(io_, kPingExpirationSeconds.count()));
+  TimerPtr timer = ping_timers_.back();
 
-  auto callback = [this, &target, replacer, &bucket, &timer](const boost::system::error_code& e) mutable {
+  auto callback = [this, target, replacer, &bucket, timer](const boost::system::error_code& e) mutable {
+                    {
+                      Guard g(timers_mux_);
+                      timer->expired = true;
+                    }
+
                     bool resendPing = true;
                     {
                       std::scoped_lock g(ping_mux_, k_bucket_mux_);
@@ -304,17 +309,12 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
                       }
                     }
 
-                    {
-                      Guard g(timers_mux_);
-                      timer.expired = true;
-                    }
-
                     if (resendPing) {
                       SendPing(target, bucket, replacer);
                     }
                   };
 
-  timer.clock.async_wait(std::move(callback));
+  timer->clock.async_wait(std::move(callback));
 }
 
 std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
