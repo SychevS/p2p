@@ -49,7 +49,7 @@ class Host : public RoutingTableEventHandler {
   bool IsDuplicate(Packet::Id);
   void InsertNewBroadcastId(Packet::Id);
 
-  Packet FormPacket(Packet::Type, ByteVector&&, const NodeId* receiver = nullptr);
+  Packet FormPacket(Packet::Type, ByteVector&&, const NodeId& receiver);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
 
   bool IsBanned(const bi::address&) { return false; }

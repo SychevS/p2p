@@ -91,7 +91,7 @@ void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
     return;
   }
 
-  auto pack = FormPacket(Packet::Type::kDirect, std::move(data), &receiver);
+  auto pack = FormPacket(Packet::Type::kDirect, std::move(data), receiver);
 
   NodeEntrance receiver_contacts;
   if (routing_table_->HasNode(receiver, receiver_contacts)) {
@@ -118,7 +118,7 @@ void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
-  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), &my_contacts_.id);
+  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), my_contacts_.id);
   {
     Guard g(broadcast_id_mux_);
     InsertNewBroadcastId(pack.header.packet_id);
@@ -129,7 +129,7 @@ void Host::SendBroadcast(ByteVector&& data) {
   }
 }
 
-Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* receiver) {
+Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId& receiver) {
   Packet result;
   result.data = std::move(data);
 
@@ -137,7 +137,7 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId* rece
   h.type = type;
   h.data_size = result.data.size();
   h.sender = my_contacts_.id;
-  if (receiver) h.receiver = *receiver;
+  h.receiver = receiver;
   h.packet_id = MurmurHash2(result.data.data(), static_cast<unsigned>(result.data.size()));
 
   return result;
@@ -179,7 +179,7 @@ void Host::Connect(const NodeEntrance& peer) {
 
   auto new_conn = Connection::Create(*this, io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
-                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &peer.id));
+                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, peer.id));
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
@@ -269,7 +269,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   connections_.insert(std::make_pair(remote_node, new_conn));
 
   if (!new_conn->IsActive()) {
-    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, &remote_node));
+    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, remote_node));
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
   } else {
     LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
