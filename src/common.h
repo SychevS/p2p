@@ -77,7 +77,7 @@ struct Packet {
     NodeId sender;
     NodeId receiver; // in broadcast case is last resender
     Id packet_id;
-    uint32_t reserved;
+    uint32_t reserved = 0;
   };
 
   void PutHeader(Serializer&) const;
