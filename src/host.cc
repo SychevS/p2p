@@ -248,11 +248,19 @@ void Host::StartAccept() {
                                return;
                              }
 
-                             if (IsBanned(sock.remote_endpoint().address())) {
+                             boost::system::error_code sock_err;
+                             if (IsBanned(sock.remote_endpoint(sock_err).address())) {
                                LOG(INFO) << "Block connection from banned address "
                                          << sock.remote_endpoint().address().to_string();
                                StartAccept();
                                return;
+                             }
+
+                             if (sock_err) {
+                                LOG(DEBUG) << "Cannot accept new connection, no access to remoted endpoint: "
+                                           << sock_err.value() << ", " << sock_err.message();
+                                StartAccept();
+                                return;
                              }
 
                              auto new_conn = Connection::Create(*this, io_, std::move(sock));
