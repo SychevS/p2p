@@ -121,18 +121,18 @@ void RoutingTable::StartFindNode(const NodeId& id, const std::vector<NodeEntranc
 
 std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_from) {
   std::vector<NodeEntrance> ret;
-  uint16_t index = KBucketIndex(received_from);
-  if (!index) index = kBucketsNum;
+  int32_t index = KBucketIndex(received_from);
+  if (index == kIvalidIndex) index = -1;
 
   Guard g(k_bucket_mux_);
-  for (uint16_t i = 0; i < index; ++i) {
+  for (int32_t i = kBucketsNum - 1; i > index; --i) {
     if (!k_buckets_[i].Size()) continue;
 
     uint8_t added_in_subtree = 0;
     auto& nodes = k_buckets_[i].GetNodes();
     for (auto& n : nodes) {
       ret.push_back(n);
-      if (++added_in_subtree > kBroadcastReplication) break;
+      if (++added_in_subtree == kBroadcastReplication) break;
     }
   }
 
@@ -320,7 +320,7 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
 std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
   auto comparator = [](const std::pair<uint16_t, NodeEntrance>& n1,
                        const std::pair<uint16_t, NodeEntrance>& n2) {
-    return n1.first < n2.first;
+    return n1.first > n2.first;
   };
 
   std::multiset<std::pair<uint16_t, NodeEntrance>, decltype(comparator)>

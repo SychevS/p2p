@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <limits>
 #include <list>
 #include <unordered_map>
 #include <thread>
@@ -45,6 +46,8 @@ class RoutingTable : public UdpSocketEventHandler {
 
   static NodeId Distance(const NodeId&, const NodeId&);
   static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
+
+  static constexpr uint16_t kIvalidIndex = std::numeric_limits<uint16_t>::max();
 
  private:
   static constexpr uint16_t kMaxDatagramSize = 1000;
@@ -131,10 +134,11 @@ inline uint16_t RoutingTable::KBucketIndex(const NodeId& id) const noexcept {
   return RoutingTable::KBucketIndex(host_data_.id, id);
 }
 
-inline uint16_t RoutingTable::KBucketIndex(const NodeId& target,
-    const NodeId& id) {
-  auto distance = Distance(target, id);
-  return distance.GetCLZ();
+inline uint16_t RoutingTable::KBucketIndex(const NodeId& target, const NodeId& id) {
+  static size_t max_id_bits = id.size() * 8;
+
+  auto clz = Distance(target, id).GetCLZ();
+  return clz == max_id_bits ? kIvalidIndex : clz;
 }
 
 } // namespace net
