@@ -68,17 +68,21 @@ struct Packet {
     kRegistration
   };
 
-  using Id = uint32_t;
-  constexpr static size_t kHeaderSize = 81;
+  template<typename Ttype,
+           typename Tdata_size,
+           typename TNodeId,
+           typename Treserved>
+  struct THeader {
+    Ttype type;
+    Tdata_size data_size;
+    TNodeId sender;
+    TNodeId receiver; // in broadcast case is last resender
+    Treserved reserved = 0;
 
-  struct Header {
-    Type type;
-    size_t data_size;
-    NodeId sender;
-    NodeId receiver; // in broadcast case is last resender
-    Id packet_id;
-    uint32_t reserved = 0;
+    constexpr static size_t size = sizeof(Ttype) + sizeof(Tdata_size) +
+      2 * sizeof(TNodeId) + sizeof(Treserved);
   };
+  typedef THeader<Type, size_t, NodeId, uint32_t> Header;
 
   void PutHeader(Serializer&) const;
   bool GetHeader(Unserializer&);

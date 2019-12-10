@@ -67,23 +67,23 @@ void Connection::Drop(DropReason reason) {
 
 void Connection::StartRead() {
   Ptr self(shared_from_this());
-  packet_.data.resize(Packet::kHeaderSize);
+  packet_.data.resize(Packet::Header::size);
   ResetTimer();
 
-  ba::async_read(socket_, ba::buffer(packet_.data, Packet::kHeaderSize),
+  ba::async_read(socket_, ba::buffer(packet_.data, Packet::Header::size),
           [this, self](const boost::system::error_code& er, size_t len) {
             if (dropped_) {
               return;
             }
             ResetTimer();
 
-            if (!CheckRead(er, Packet::kHeaderSize, len)) {
+            if (!CheckRead(er, Packet::Header::size, len)) {
               LOG(DEBUG) << "Header check read failded.";
               Drop(kReadError);
               return;
             }
 
-            Unserializer u(packet_.data.data(), Packet::kHeaderSize);
+            Unserializer u(packet_.data.data(), Packet::Header::size);
             if (!packet_.GetHeader(u)) {
               LOG(DEBUG) << "Invalid header received.";
               Drop(kProtocolCorrupted);

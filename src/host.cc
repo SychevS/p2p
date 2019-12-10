@@ -1,3 +1,5 @@
+#include <random>
+
 #include "host.h"
 
 #include "utils/log.h"
@@ -59,18 +61,24 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
 void Host::OnPacketReceived(Packet&& packet) {
   if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
-  } else if (packet.IsBroadcast() && !IsDuplicate(packet.header.packet_id)) {
+  } else if (packet.IsBroadcast() && !IsDuplicate(packet)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.receiver);
     packet.header.receiver = my_contacts_.id;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
-
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   }
 }
 
-bool Host::IsDuplicate(Packet::Id id) {
+uint32_t Host::GetId(const Packet& packet) {
+  static uint32_t unique_random = std::random_device{}();
+  return unique_random ^
+    MurmurHash2(packet.data.data(), static_cast<unsigned>(packet.data.size()));
+}
+
+bool Host::IsDuplicate(const Packet& packet) {
+  uint32_t id = GetId(packet);
   Guard g(broadcast_id_mux_);
   if (broadcast_ids_.find(id) == broadcast_ids_.end()) {
     InsertNewBroadcastId(id);
@@ -79,7 +87,13 @@ bool Host::IsDuplicate(Packet::Id id) {
   return true;
 }
 
-void Host::InsertNewBroadcastId(Packet::Id id) {
+void Host::InsertNewBroadcast(const Packet& packet) {
+  uint32_t id = GetId(packet);
+  Guard g(broadcast_id_mux_);
+  InsertNewBroadcastId(id);
+}
+
+void Host::InsertNewBroadcastId(uint32_t id) {
   if (broadcast_ids_.size() == kMaxBroadcastIds_) {
     broadcast_ids_.erase(broadcast_ids_.begin());
   }
@@ -119,10 +133,7 @@ void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
 
 void Host::SendBroadcast(ByteVector&& data) {
   auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), my_contacts_.id);
-  {
-    Guard g(broadcast_id_mux_);
-    InsertNewBroadcastId(pack.header.packet_id);
-  }
+  InsertNewBroadcast(pack);
   auto nodes = routing_table_->GetBroadcastList(my_contacts_.id);
   for (const auto& n : nodes) {
     SendDirect(n, pack);
@@ -138,7 +149,6 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId& rece
   h.data_size = result.data.size();
   h.sender = my_contacts_.id;
   h.receiver = receiver;
-  h.packet_id = MurmurHash2(result.data.data(), static_cast<unsigned>(result.data.size()));
 
   return result;
 }

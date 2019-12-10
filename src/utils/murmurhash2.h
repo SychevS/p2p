@@ -1,4 +1,4 @@
-#ifndef NET_MURMURHASH2_H 
+#ifndef NET_MURMURHASH2_H
 #define NET_MURMURHASH2_H
 
 namespace net {

@@ -46,8 +46,10 @@ class Host : public RoutingTableEventHandler {
   void StartAccept();
 
   void SendDirect(const NodeEntrance&, const Packet&);
-  bool IsDuplicate(Packet::Id);
-  void InsertNewBroadcastId(Packet::Id);
+  uint32_t GetId(const Packet&);
+  bool IsDuplicate(const Packet&);
+  void InsertNewBroadcast(const Packet&);
+  void InsertNewBroadcastId(uint32_t id); // does't lock broadcast_id_mux_
 
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId& receiver);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
@@ -73,7 +75,7 @@ class Host : public RoutingTableEventHandler {
 
   Mutex broadcast_id_mux_;
   constexpr static size_t kMaxBroadcastIds_ = 10000;
-  std::unordered_set<Packet::Id> broadcast_ids_;
+  std::unordered_set<uint32_t> broadcast_ids_;
 
   Mutex send_mux_;
   constexpr static size_t kMaxSendQueueSize_ = 1000;

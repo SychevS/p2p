@@ -45,7 +45,6 @@ void Packet::PutHeader(Serializer& s) const {
   s.Put(header.data_size);
   s.Put(reinterpret_cast<const uint8_t*>(header.sender.GetPtr()), header.sender.size());
   s.Put(reinterpret_cast<const uint8_t*>(header.receiver.GetPtr()), header.receiver.size());
-  s.Put(header.packet_id);
   s.Put(header.reserved);
 }
 
@@ -59,7 +58,6 @@ bool Packet::GetHeader(Unserializer& u) {
          u.Get(header.data_size) &&
          u.Get(reinterpret_cast<uint8_t*>(header.sender.GetPtr()), header.sender.size()) &&
          u.Get(reinterpret_cast<uint8_t*>(header.receiver.GetPtr()), header.receiver.size()) &&
-         u.Get(header.packet_id) &&
          u.Get(header.reserved) &&
          IsHeaderValid();
 }
