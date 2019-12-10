@@ -49,7 +49,7 @@ class Host : public RoutingTableEventHandler {
   uint32_t GetId(const Packet&);
   bool IsDuplicate(const Packet&);
   void InsertNewBroadcast(const Packet&);
-  void InsertNewBroadcastId(uint32_t id); // does't lock broadcast_id_mux_
+  void InsertNewBroadcastId(uint32_t id); // doesn't lock broadcast_id_mux_
 
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId& receiver);
   void SendPacket(const NodeEntrance& receiver, Packet&&);

@@ -1,6 +1,6 @@
-#include <random>
-
 #include "host.h"
+
+#include <random>
 
 #include "utils/log.h"
 #include "utils/murmurhash2.h"
