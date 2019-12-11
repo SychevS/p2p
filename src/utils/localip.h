@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace net {
-std::vector<std::string> getLocalIp4();
+std::vector<std::string> GetLocalIp4();
 }  // namespace net
 
 #endif // NET_LOCALIP_H

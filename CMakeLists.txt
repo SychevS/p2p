@@ -46,8 +46,16 @@ add_library(${PROJECT_NAME} STATIC
   src/third-party/UPnP.cpp
   src/utils/log.h
   src/utils/log.cc
+  src/utils/murmurhash2.h
+  src/utils/localip.h
   src/utils/serialization.h
   src/utils/serialization.cc)
+
+if(MSVC)
+  target_sources(${PROJECT_NAME} PRIVATE src/utils/localip_windows.cc)
+else()
+  target_sources(${PROJECT_NAME} PRIVATE src/utils/localip_posix.cc)
+endif()
 
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
