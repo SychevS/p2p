@@ -19,6 +19,7 @@ namespace net {
 
 constexpr uint16_t kDefaultPort = 31392;
 constexpr const char* kLocalHost = "127.0.0.1";
+constexpr const char* kAllInterfaces = "0.0.0.0";
 
 namespace ba = boost::asio;
 namespace bi = ba::ip;

@@ -1,7 +1,9 @@
 #include "host.h"
 
 #include <random>
+#include <stdexcept>
 
+#include "utils/localip.h"
 #include "utils/log.h"
 #include "utils/murmurhash2.h"
 
@@ -201,22 +203,50 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
 }
 
 void Host::DeterminePublic() {
+  auto available_interfaces = GetLocalIp4();
+
+  if (available_interfaces.empty()) {
+    throw std::domain_error("no network");
+  }
+
+  std::string net_info = "Available net interfaces: ";
+  for (auto& i : available_interfaces) {
+    net_info += i.to_string() + " ";
+  }
+  LOG(INFO) << net_info;
+
   my_contacts_.id = net_config_.id;
   my_contacts_.address = net_config_.listen_address.empty() ?
-                         bi::make_address(kLocalHost) :
+                         bi::address() :
                          bi::make_address(net_config_.listen_address);
   my_contacts_.udp_port = net_config_.listen_port;
   my_contacts_.tcp_port = net_config_.listen_port;
 
-  if (!IsPrivateAddress(my_contacts_.address)) {
+  if (my_contacts_.address.is_unspecified()) {
+    LOG(INFO) << "IP address in config is unspecified.";
+    for (auto& addr : available_interfaces) {
+      if (!IsPrivateAddress(addr)) {
+        my_contacts_.address = addr;
+        LOG(INFO) << "Has public address in available interfaces " << addr;
+        return;
+      }
+    }
+
+    LOG(INFO) << "No public addresses available.";
+    my_contacts_.address = *available_interfaces.begin();
+  }
+
+  if (!IsPrivateAddress(my_contacts_.address) && available_interfaces.find(my_contacts_.address) != available_interfaces.end()) {
     LOG(INFO) << "IP address from config is public: " << my_contacts_.address << ". UPnP disabled.";
-  } else if (net_config_.traverse_nat) {
+    return;
+  }
+
+  if (net_config_.traverse_nat) {
     LOG(INFO) << "IP address from config is private: " << my_contacts_.address
               << ". UPnP enabled, start punching through NAT.";
 
     bi::address private_addr;
-    auto public_ep =
-        TraverseNAT(std::set<bi::address>({my_contacts_.address}), my_contacts_.tcp_port, private_addr);
+    auto public_ep = TraverseNAT(available_interfaces, my_contacts_.tcp_port, private_addr);
 
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
@@ -224,11 +254,14 @@ void Host::DeterminePublic() {
       my_contacts_.address = public_ep.address();
       my_contacts_.udp_port = public_ep.port();
       my_contacts_.tcp_port = public_ep.port();
+      return;
     }
   } else {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
               << my_contacts_.address;
   }
+
+  my_contacts_.address = bi::make_address(kAllInterfaces);
 }
 
 void Host::TcpListen() {
