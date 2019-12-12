@@ -47,6 +47,7 @@ add_library(${PROJECT_NAME} STATIC
   src/utils/log.h
   src/utils/log.cc
   src/utils/murmurhash2.h
+  src/utils/murmurhash2.cc
   src/utils/localip.h
   src/utils/serialization.h
   src/utils/serialization.cc)

@@ -118,7 +118,7 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   std::unique_ptr<UPnP> upnp;
   try {
     upnp.reset(new UPnP);
-  } catch (...) {} // let m_upnp continue as null - we handle it properly.
+  } catch (...) {} // let upnp continue as null - we handle it properly.
 
   bi::tcp::endpoint upnp_ep;
 
