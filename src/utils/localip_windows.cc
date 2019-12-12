@@ -1,15 +1,15 @@
 #include "localip.h"
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 namespace net {
 
-std::vector<std::string> GetLocalIp4() {
-  std::vector<std::string> result;
+std::set<bi::address> GetLocalIp4() {
+  std::set<bi::address> result;
 
   PIP_ADAPTER_ADDRESSES pAddresses = NULL;
   ULONG outBufLen = 15000;
@@ -47,7 +47,7 @@ std::vector<std::string> GetLocalIp4() {
           int ret = getnameinfo(pUnicast->Address.lpSockaddr, sizeof(struct sockaddr),
             buf, sizeof(buf), nullptr, 0, NI_NUMERICHOST);
           if (ret == 0) {
-              result.push_back(std::string(buf));
+              result.insert(bi::make_address(std::string(buf)));
           }
           pUnicast = pUnicast->Next;
         }

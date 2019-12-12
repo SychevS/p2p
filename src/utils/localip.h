@@ -1,11 +1,13 @@
 #ifndef NET_LOCALIP_H
 #define NET_LOCALIP_H
 
+#include <set>
 #include <string>
-#include <vector>
+
+#include "../common.h"
 
 namespace net {
-std::vector<std::string> GetLocalIp4();
+std::set<bi::address> GetLocalIp4();
 }  // namespace net
 
 #endif // NET_LOCALIP_H

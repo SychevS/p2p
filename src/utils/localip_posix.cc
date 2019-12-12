@@ -1,15 +1,15 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <net/if.h>
+#include "localip.h"
+
 #include <ifaddrs.h>
 #include <netdb.h>
-
-#include "localip.h"
+#include <net/if.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 namespace net {
 
-std::vector<std::string> GetLocalIp4() {
-  std::vector<std::string> result;
+std::set<bi::address> GetLocalIp4() {
+  std::set<bi::address> result;
   struct ifaddrs *ifa, *ifap;
   char buf[255];
 
@@ -28,7 +28,7 @@ std::vector<std::string> GetLocalIp4() {
     int ret = getnameinfo(ifap->ifa_addr, sizeof(struct sockaddr_in),
       buf, sizeof(buf), nullptr, 0, NI_NUMERICHOST);
     if (ret == 0) {
-      result.push_back(std::string(buf));
+      result.insert(bi::make_address(std::string(buf)));
     }
   }
   freeifaddrs(ifa);
