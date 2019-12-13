@@ -41,7 +41,7 @@ class Host : public RoutingTableEventHandler {
   void OnPendingConnectionError(const NodeId&, Connection::DropReason);
 
  private:
-  void DeterminePublic();
+  void SetUpMyContacts();
   void TcpListen();
   void StartAccept();
 

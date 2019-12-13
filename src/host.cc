@@ -17,7 +17,7 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
       routing_table_(nullptr),
       packets_to_send_(0) {
   InitLogger();
-  DeterminePublic();
+  SetUpMyContacts();
 
   routing_table_ = std::make_shared<RoutingTable>(io_, my_contacts_,
       static_cast<RoutingTableEventHandler&>(*this));
@@ -202,7 +202,7 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
   routing_table_->AddNodes(nodes);
 }
 
-void Host::DeterminePublic() {
+void Host::SetUpMyContacts() {
   auto available_interfaces = GetLocalIp4();
 
   if (available_interfaces.empty()) {
@@ -251,10 +251,8 @@ void Host::DeterminePublic() {
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
     } else {
-      my_contacts_.address = public_ep.address();
       my_contacts_.udp_port = public_ep.port();
       my_contacts_.tcp_port = public_ep.port();
-      return;
     }
   } else {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
