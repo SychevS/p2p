@@ -29,6 +29,10 @@ Host::~Host() {
   if (working_thread_.joinable()) {
     working_thread_.join();
   }
+
+  if (UPnP_success.load()) {
+    DropRedirectUPnP(my_contacts_.tcp_port);
+  }
 }
 
 void Host::Run() {
@@ -251,6 +255,7 @@ void Host::SetUpMyContacts() {
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
     } else {
+      UPnP_success.store(true);
       my_contacts_.udp_port = public_ep.port();
       my_contacts_.tcp_port = public_ep.port();
     }

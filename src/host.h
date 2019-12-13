@@ -89,6 +89,8 @@ class Host : public RoutingTableEventHandler {
 
   Mutex pend_conn_mux_;
   std::unordered_set<NodeId> pending_connections_;
+
+  std::atomic<bool> UPnP_success = false;
 };
 
 } // namespace net

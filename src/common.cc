@@ -155,6 +155,17 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   return upnp_ep;
 }
 
+void DropRedirectUPnP(uint16_t port) {
+  std::unique_ptr<UPnP> upnp;
+  try {
+    upnp.reset(new UPnP);
+  } catch (...) {}
+
+  if (upnp && upnp->isValid()) {
+    upnp->removeRedirect(port);
+  }
+}
+
 std::string IdToBase58(const NodeId& id) {
   const auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
   return EncodeBase58(ptr, ptr + id.size());

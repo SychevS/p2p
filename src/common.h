@@ -116,6 +116,8 @@ std::vector<NodeEntrance> GetDefaultBootNodes();
 bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses, 
                               uint16_t listen_port, bi::address& o_upnp_interface_addr);
 
+void DropRedirectUPnP(uint16_t port);
+
 std::string IdToBase58(const NodeId&);
 NodeId IdFromBase58(const std::string&);
 
