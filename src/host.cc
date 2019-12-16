@@ -1,11 +1,9 @@
 #include "host.h"
 
-#include <random>
 #include <stdexcept>
 
 #include "utils/localip.h"
 #include "utils/log.h"
-#include "utils/murmurhash2.h"
 
 namespace net {
 
@@ -77,18 +75,8 @@ void Host::OnPacketReceived(Packet&& packet) {
   }
 }
 
-uint32_t Host::GetId(const Packet& packet) {
-  static uint32_t unique_random = std::random_device{}();
-  // It is useful to XOR hash with unique random for current node
-  // in case we have duplicated hash for not duplicated data. If we don't use
-  // XOR all nodes will ban this message definitely. XORing increases probability
-  // for not duplicated data to spread through the network.
-  return unique_random ^
-    MurmurHash2(packet.data.data(), static_cast<unsigned>(packet.data.size()));
-}
-
 bool Host::IsDuplicate(const Packet& packet) {
-  uint32_t id = GetId(packet);
+  auto id = packet.GetId();
   Guard g(broadcast_id_mux_);
   if (broadcast_ids_.find(id) == broadcast_ids_.end()) {
     InsertNewBroadcastId(id);
@@ -98,12 +86,12 @@ bool Host::IsDuplicate(const Packet& packet) {
 }
 
 void Host::InsertNewBroadcast(const Packet& packet) {
-  uint32_t id = GetId(packet);
+  auto id = packet.GetId();
   Guard g(broadcast_id_mux_);
   InsertNewBroadcastId(id);
 }
 
-void Host::InsertNewBroadcastId(uint32_t id) {
+void Host::InsertNewBroadcastId(const Packet::Id& id) {
   if (broadcast_ids_.size() == kMaxBroadcastIds_) {
     broadcast_ids_.erase(broadcast_ids_.begin());
   }

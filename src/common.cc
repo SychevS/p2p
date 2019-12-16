@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "third-party/sha1.h"
 #include "third-party/UPnP.h"
 #include "utils/log.h"
 
@@ -66,6 +67,14 @@ bool Packet::Get(Unserializer& u) {
   if (!GetHeader(u)) return false;
   data.resize(header.data_size);
   return u.Get(data.data(), data.size());
+}
+
+Packet::Id Packet::GetId() const noexcept {
+  Id res;
+  SHA1(reinterpret_cast<char*>(res.data()),
+       reinterpret_cast<const char*>(data.data()),
+       static_cast<int>(data.size()));
+  return res;
 }
 
 bool IsPrivateAddress(const bi::address& address_to_check) {

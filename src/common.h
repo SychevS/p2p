@@ -2,6 +2,7 @@
 #define NET_COMMON_H
 
 #include <algorithm>
+#include <array>
 #include <cinttypes>
 #include <functional>
 #include <set>
@@ -83,7 +84,9 @@ struct Packet {
     constexpr static size_t size = sizeof(Ttype) + sizeof(Tdata_size) +
       2 * sizeof(TNodeId) + sizeof(Treserved);
   };
-  typedef THeader<Type, size_t, NodeId, uint32_t> Header;
+
+  using Header = THeader<Type, size_t, NodeId, uint32_t>;
+  using Id = std::array<uint8_t, 20>;
 
   void PutHeader(Serializer&) const;
   bool GetHeader(Unserializer&);
@@ -97,6 +100,8 @@ struct Packet {
   bool IsHeaderValid() const noexcept {
     return IsDirect() || IsBroadcast() || IsRegistration();
   }
+
+  Id GetId() const noexcept;
 
   Header header;
   ByteVector data;
@@ -130,6 +135,16 @@ struct hash<net::NodeId> {
   size_t operator()(const net::NodeId& id) const noexcept {
     size_t res;
     auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
+    std::copy(ptr, ptr + sizeof(res), reinterpret_cast<uint8_t*>(&res));
+    return res;
+  }
+};
+
+template<>
+struct hash<net::Packet::Id> {
+ size_t operator()(const net::Packet::Id& id) const noexcept {
+    size_t res;
+    auto ptr = id.data();
     std::copy(ptr, ptr + sizeof(res), reinterpret_cast<uint8_t*>(&res));
     return res;
   }
