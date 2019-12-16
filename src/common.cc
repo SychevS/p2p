@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "third-party/sha1.h"
 #include "third-party/UPnP.h"
 #include "utils/log.h"
 
@@ -68,6 +69,14 @@ bool Packet::Get(Unserializer& u) {
   return u.Get(data.data(), data.size());
 }
 
+Packet::Id Packet::GetId() const noexcept {
+  Id res;
+  SHA1(reinterpret_cast<char*>(res.data()),
+       reinterpret_cast<const char*>(data.data()),
+       static_cast<int>(data.size()));
+  return res;
+}
+
 bool IsPrivateAddress(const bi::address& address_to_check) {
   if (address_to_check.is_v4()) {
     bi::address_v4 v4_address = address_to_check.to_v4();
@@ -118,7 +127,7 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   std::unique_ptr<UPnP> upnp;
   try {
     upnp.reset(new UPnP);
-  } catch (...) {} // let m_upnp continue as null - we handle it properly.
+  } catch (...) {} // let upnp continue as null - we handle it properly.
 
   bi::tcp::endpoint upnp_ep;
 
@@ -127,7 +136,7 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
     bi::address p_addr;
     int ext_port = 0;
 
-    for (auto const& addr: if_addresses) {
+    for (const auto& addr: if_addresses) {
       ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port);
       if (addr.is_v4()
           && IsPrivateAddress(addr)
@@ -154,6 +163,17 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
   }
 
   return upnp_ep;
+}
+
+void DropRedirectUPnP(uint16_t port) {
+  std::unique_ptr<UPnP> upnp;
+  try {
+    upnp.reset(new UPnP);
+  } catch (...) {}
+
+  if (upnp && upnp->isValid()) {
+    upnp->removeRedirect(port);
+  }
 }
 
 std::string IdToBase58(const NodeId& id) {

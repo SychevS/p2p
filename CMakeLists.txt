@@ -70,11 +70,12 @@ add_library(${PROJECT_NAME} STATIC
   src/routing_table.cc
   src/types.h
   src/udp.h
+  src/third-party/sha1.h
+  src/third-party/sha1.cc
   src/third-party/UPnP.h
-  src/third-party/UPnP.cpp
+  src/third-party/UPnP.cc
   src/utils/log.h
   src/utils/log.cc
-  src/utils/murmurhash2.h
   src/utils/localip.h
   src/utils/serialization.h
   src/utils/serialization.cc)

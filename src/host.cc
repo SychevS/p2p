@@ -1,9 +1,9 @@
 #include "host.h"
 
-#include <random>
+#include <stdexcept>
 
+#include "utils/localip.h"
 #include "utils/log.h"
-#include "utils/murmurhash2.h"
 
 namespace net {
 
@@ -15,7 +15,7 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
       routing_table_(nullptr),
       packets_to_send_(0) {
   InitLogger();
-  DeterminePublic();
+  SetUpMyContacts();
 
   routing_table_ = std::make_shared<RoutingTable>(io_, my_contacts_,
       static_cast<RoutingTableEventHandler&>(*this));
@@ -26,6 +26,10 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
 Host::~Host() {
   if (working_thread_.joinable()) {
     working_thread_.join();
+  }
+
+  if (UPnP_success.load()) {
+    DropRedirectUPnP(my_contacts_.tcp_port);
   }
 }
 
@@ -71,14 +75,8 @@ void Host::OnPacketReceived(Packet&& packet) {
   }
 }
 
-uint32_t Host::GetId(const Packet& packet) {
-  static uint32_t unique_random = std::random_device{}();
-  return unique_random ^
-    MurmurHash2(packet.data.data(), static_cast<unsigned>(packet.data.size()));
-}
-
 bool Host::IsDuplicate(const Packet& packet) {
-  uint32_t id = GetId(packet);
+  auto id = packet.GetId();
   Guard g(broadcast_id_mux_);
   if (broadcast_ids_.find(id) == broadcast_ids_.end()) {
     InsertNewBroadcastId(id);
@@ -88,12 +86,12 @@ bool Host::IsDuplicate(const Packet& packet) {
 }
 
 void Host::InsertNewBroadcast(const Packet& packet) {
-  uint32_t id = GetId(packet);
+  auto id = packet.GetId();
   Guard g(broadcast_id_mux_);
   InsertNewBroadcastId(id);
 }
 
-void Host::InsertNewBroadcastId(uint32_t id) {
+void Host::InsertNewBroadcastId(const Packet::Id& id) {
   if (broadcast_ids_.size() == kMaxBroadcastIds_) {
     broadcast_ids_.erase(broadcast_ids_.begin());
   }
@@ -196,28 +194,56 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
   routing_table_->AddNodes(nodes);
 }
 
-void Host::DeterminePublic() {
+void Host::SetUpMyContacts() {
+  auto available_interfaces = GetLocalIp4();
+
+  if (available_interfaces.empty()) {
+    throw std::domain_error("no network");
+  }
+
+  std::string net_info = "Available net interfaces: ";
+  for (auto& i : available_interfaces) {
+    net_info += i.to_string() + " ";
+  }
+  LOG(INFO) << net_info;
+
   my_contacts_.id = net_config_.id;
   my_contacts_.address = net_config_.listen_address.empty() ?
-                         bi::make_address(kLocalHost) :
+                         bi::address() :
                          bi::make_address(net_config_.listen_address);
   my_contacts_.udp_port = net_config_.listen_port;
   my_contacts_.tcp_port = net_config_.listen_port;
 
-  if (!IsPrivateAddress(my_contacts_.address)) {
+  if (my_contacts_.address.is_unspecified()) {
+    LOG(INFO) << "IP address in config is unspecified.";
+    for (auto& addr : available_interfaces) {
+      if (!IsPrivateAddress(addr)) {
+        my_contacts_.address = addr;
+        LOG(INFO) << "Has public address in available interfaces " << addr;
+        return;
+      }
+    }
+
+    LOG(INFO) << "No public addresses available.";
+    my_contacts_.address = *available_interfaces.begin();
+  }
+
+  if (!IsPrivateAddress(my_contacts_.address) && available_interfaces.find(my_contacts_.address) != available_interfaces.end()) {
     LOG(INFO) << "IP address from config is public: " << my_contacts_.address << ". UPnP disabled.";
-  } else if (net_config_.traverse_nat) {
+    return;
+  }
+
+  if (net_config_.traverse_nat) {
     LOG(INFO) << "IP address from config is private: " << my_contacts_.address
               << ". UPnP enabled, start punching through NAT.";
 
     bi::address private_addr;
-    auto public_ep =
-        TraverseNAT(std::set<bi::address>({my_contacts_.address}), my_contacts_.tcp_port, private_addr);
+    auto public_ep = TraverseNAT(available_interfaces, my_contacts_.tcp_port, private_addr);
 
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
     } else {
-      my_contacts_.address = public_ep.address();
+      UPnP_success.store(true);
       my_contacts_.udp_port = public_ep.port();
       my_contacts_.tcp_port = public_ep.port();
     }
@@ -225,6 +251,8 @@ void Host::DeterminePublic() {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
               << my_contacts_.address;
   }
+
+  my_contacts_.address = bi::make_address(kAllInterfaces);
 }
 
 void Host::TcpListen() {
