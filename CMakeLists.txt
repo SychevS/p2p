@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(p2p_network)
+project(p2p_network CXX)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -15,6 +17,32 @@ if(NOT MSVC)
 else()
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2")
 endif()
+
+macro(configure_msvc_flags)
+    if (MSVC)
+        if ("${CMAKE_CXX_FLAGS}" MATCHES "([/-]W[0-3])")
+            message("Other Flags /W detected, replace it to avoid compiler warning to /W4")
+            string(REGEX REPLACE "([/-]W[0-3])" "/W4" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        else()
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+        endif()
+    endif()
+endmacro()
+
+macro(configure_third_party_compiler_flags)
+    if (MSVC)
+        if ("${CMAKE_CXX_FLAGS}" MATCHES "([/-]W[1-4])")
+            message("Other Flags /W detected, replace it to suppress third party warnings")
+            match_and_replace(CMAKE_CXX_FLAGS "([/-]W[0-4])" "/W0")
+            match_and_replace(CMAKE_C_FLAGS "([/-]W[0-4])" "/W0")
+        else()
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W0")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W0")
+        endif()
+    endif()
+endmacro()
+
+configure_msvc_flags()
 
 add_subdirectory(third-party)
 

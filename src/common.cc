@@ -128,9 +128,10 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
     int ext_port = 0;
 
     for (auto const& addr: if_addresses) {
+      ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port);
       if (addr.is_v4()
           && IsPrivateAddress(addr)
-          && (ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port))) {
+          && ext_port) {
         p_addr = addr;
         break;
       }
@@ -143,7 +144,7 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
       LOG(INFO) << "Punched through NAT and mapped local port " << listen_port << " onto external port " << ext_port << ".";
       LOG(INFO) << "External addr: " << e_ip;
       o_upnp_interface_addr = p_addr;
-      upnp_ep = bi::tcp::endpoint(e_ip_addr, (uint16_t)ext_port);
+      upnp_ep = bi::tcp::endpoint(e_ip_addr, static_cast<uint16_t>(ext_port));
     } else {
       LOG(INFO) << "Couldn't punch through NAT (or no NAT in place)."
                 << " UPnP returned address: " << e_ip_addr << ", port: " << ext_port;

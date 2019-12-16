@@ -16,7 +16,7 @@ RoutingTable::RoutingTable(ba::io_context& io,
       host_data_(host_data),
       host_(host),
       io_(io),
-      kBucketsNum(host_data.id.size() * 8) { // num of bits in NodeId
+      kBucketsNum(static_cast<uint16_t>(host_data.id.size() * 8)) { // num of bits in NodeId
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];
   discovery_thread_ = std::thread(&RoutingTable::DiscoveryRoutine, this);
