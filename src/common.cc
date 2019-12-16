@@ -137,10 +137,10 @@ bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses,
     int ext_port = 0;
 
     for (const auto& addr: if_addresses) {
-      ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port);
-      if (addr.is_v4()
-          && IsPrivateAddress(addr)
-          && ext_port) {
+      if (addr.is_v4() && IsPrivateAddress(addr)) {
+        ext_port = upnp->addRedirect(addr.to_string().c_str(), listen_port);
+        if (!ext_port) continue;
+
         p_addr = addr;
         break;
       }
