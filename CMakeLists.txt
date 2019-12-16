@@ -26,6 +26,8 @@ macro(configure_msvc_flags)
     else()
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
     endif()
+
+    add_compile_options(/wd4573)
   endif()
 endmacro()
 

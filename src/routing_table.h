@@ -34,7 +34,7 @@ class RoutingTable : public UdpSocketEventHandler {
   RoutingTable(ba::io_context& io,
                const NodeEntrance& host_data,
                RoutingTableEventHandler& host);
-  ~RoutingTable();
+  ~RoutingTable() override;
 
   // starts lookup if not started yet
   void AddNodes(const std::vector<NodeEntrance>&);
