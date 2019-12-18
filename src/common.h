@@ -2,7 +2,6 @@
 #define NET_COMMON_H
 
 #include <algorithm>
-#include <array>
 #include <cinttypes>
 #include <functional>
 #include <set>
@@ -95,7 +94,7 @@ struct Packet {
   };
 
   using Header = THeader<Type, size_t, NodeId, uint32_t>;
-  using Id = std::array<uint8_t, 20>;
+  using Id = ByteArray<20>;
 
   void PutHeader(Serializer&) const;
   bool GetHeader(Unserializer&);
