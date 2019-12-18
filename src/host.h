@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include "banman.h"
 #include "common.h"
 #include "connection.h"
 #include "routing_table.h"
@@ -53,9 +54,6 @@ class Host : public RoutingTableEventHandler {
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId& receiver);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
 
-  bool IsBanned(const bi::address&) { return false; }
-  void Ban(const bi::address&) {}
-
   void Connect(const NodeEntrance&);
   Connection::Ptr IsConnected(const NodeId&);
 
@@ -90,6 +88,8 @@ class Host : public RoutingTableEventHandler {
   std::unordered_set<NodeId> pending_connections_;
 
   std::atomic<bool> UPnP_success = false;
+
+  BanMan ban_man_;
 };
 
 } // namespace net

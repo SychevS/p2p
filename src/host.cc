@@ -13,7 +13,8 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
       acceptor_(io_),
       event_handler_(event_handler),
       routing_table_(nullptr),
-      packets_to_send_(0) {
+      packets_to_send_(0),
+      ban_man_(kBanFileName) {
   InitLogger();
   SetUpMyContacts();
 
@@ -287,18 +288,19 @@ void Host::StartAccept() {
                              }
 
                              boost::system::error_code sock_err;
-                             if (IsBanned(sock.remote_endpoint(sock_err).address())) {
-                               LOG(INFO) << "Block connection from banned address "
-                                         << sock.remote_endpoint().address().to_string();
-                               StartAccept();
-                               return;
-                             }
+                             auto ep = sock.remote_endpoint(sock_err);
 
                              if (sock_err) {
                                 LOG(DEBUG) << "Cannot accept new connection, no access to remoted endpoint: "
                                            << sock_err.value() << ", " << sock_err.message();
                                 StartAccept();
                                 return;
+                             }
+
+                             if (ban_man_.IsBanned(BanEntry{ep.address(), ep.port()})) {
+                               LOG(INFO) << "Block connection from banned endpoint " << ep;
+                               StartAccept();
+                               return;
                              }
 
                              auto new_conn = Connection::Create(*this, io_, std::move(sock));
