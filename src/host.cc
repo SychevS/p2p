@@ -63,6 +63,10 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
   }
 }
 
+bool Host::IsEndpointBanned(const bi::address& addr, uint16_t port) {
+  return ban_man_.IsBanned(BanEntry{addr, port});
+}
+
 void Host::OnPacketReceived(Packet&& packet) {
   if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));

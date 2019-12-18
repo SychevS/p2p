@@ -34,7 +34,10 @@ class Host : public RoutingTableEventHandler {
 
   void Run();
 
+ protected:
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
+  bool IsEndpointBanned(const bi::address& addr, uint16_t port) override;
+
   void OnPacketReceived(Packet&&);
 
   void OnConnected(const NodeId& remote_node, Connection::Ptr);
@@ -90,6 +93,9 @@ class Host : public RoutingTableEventHandler {
   std::atomic<bool> UPnP_success = false;
 
   BanMan ban_man_;
+
+  // @TODO remove from friends
+  friend class Connection;
 };
 
 } // namespace net
