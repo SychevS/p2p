@@ -140,6 +140,8 @@ std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_
 }
 
 void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVector& data) {
+  if (host_.IsEndpointBanned(from.address(), from.port())) return;
+
   auto packet = KademliaDatagram::ReinterpretUdpPacket(from, data);
   if (!packet) return;
 

@@ -2,7 +2,6 @@
 #define NET_COMMON_H
 
 #include <algorithm>
-#include <array>
 #include <cinttypes>
 #include <functional>
 #include <set>
@@ -29,6 +28,7 @@ namespace net {
 constexpr uint16_t kDefaultPort = 31392;
 constexpr const char* kLocalHost = "127.0.0.1";
 constexpr const char* kAllInterfaces = "0.0.0.0";
+constexpr const char* kBanFileName = "banlist.dat";
 
 namespace ba = boost::asio;
 namespace bi = ba::ip;
@@ -94,7 +94,7 @@ struct Packet {
   };
 
   using Header = THeader<Type, size_t, NodeId, uint32_t>;
-  using Id = std::array<uint8_t, 20>;
+  using Id = ByteArray<20>;
 
   void PutHeader(Serializer&) const;
   bool GetHeader(Unserializer&);

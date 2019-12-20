@@ -27,6 +27,7 @@ class RoutingTableEventHandler {
  public:
   virtual ~RoutingTableEventHandler() = default;
   virtual void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) = 0;
+  virtual bool IsEndpointBanned(const bi::address& addr, uint16_t port) = 0;
 };
 
 class RoutingTable : public UdpSocketEventHandler {

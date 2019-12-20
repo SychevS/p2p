@@ -57,6 +57,8 @@ find_package(Boost 1.66 REQUIRED COMPONENTS system)
 find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
+  src/banman.h
+  src/banman.cc
   src/connection.h
   src/connection.cc
   src/common.h

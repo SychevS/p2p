@@ -20,6 +20,9 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
   routing_table_ = std::make_shared<RoutingTable>(io_, my_contacts_,
       static_cast<RoutingTableEventHandler&>(*this));
 
+  ban_man_ = std::make_unique<BanMan>(kBanFileName, static_cast<BanManOwner&>(*this),
+      routing_table_);
+
   TcpListen();
 }
 
@@ -28,7 +31,7 @@ Host::~Host() {
     working_thread_.join();
   }
 
-  if (UPnP_success.load()) {
+  if (UPnP_success_.load()) {
     DropRedirectUPnP(my_contacts_.tcp_port);
   }
 }
@@ -41,9 +44,29 @@ void Host::Run() {
   working_thread_ = std::thread([this] { io_.run(); });
 }
 
+void Host::Ban(const NodeId& peer) {
+  ban_man_->Ban(peer);
+}
+
+void Host::Unban(const NodeId& peer) {
+  ban_man_->Unban(peer);
+}
+
+void Host::ClearBanList() {
+  ban_man_->Clear();
+}
+
+void Host::OnIdBanned(const NodeId& peer) {
+  DropConnections(peer);
+  ClearSendQueue(peer);
+  RemoveFromPendingConn(peer);
+}
+
 void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType event) {
   switch (event) {
     case RoutingTableEventType::kNodeFound : {
+      ban_man_->OnNodeFound(node);
+
       if (!IsConnected(node.id)) {
         Connect(node);
       }
@@ -60,6 +83,10 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
       event_handler_.OnNodeRemoved(node.id);
       break;
   }
+}
+
+bool Host::IsEndpointBanned(const bi::address& addr, uint16_t port) {
+  return ban_man_->IsBanned(BanEntry{addr, port});
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
@@ -179,6 +206,12 @@ Connection::Ptr Host::IsConnected(const NodeId& peer) {
 }
 
 void Host::Connect(const NodeEntrance& peer) {
+  if (IsEndpointBanned(peer.address, peer.tcp_port)) {
+    ClearSendQueue(peer.id);
+    RemoveFromPendingConn(peer.id);
+    return;
+  }
+
   if (HasPendingConnection(peer.id)) {
     return;
   }
@@ -243,7 +276,7 @@ void Host::SetUpMyContacts() {
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
     } else {
-      UPnP_success.store(true);
+      UPnP_success_.store(true);
       my_contacts_.udp_port = public_ep.port();
       my_contacts_.tcp_port = public_ep.port();
     }
@@ -287,18 +320,19 @@ void Host::StartAccept() {
                              }
 
                              boost::system::error_code sock_err;
-                             if (IsBanned(sock.remote_endpoint(sock_err).address())) {
-                               LOG(INFO) << "Block connection from banned address "
-                                         << sock.remote_endpoint().address().to_string();
-                               StartAccept();
-                               return;
-                             }
+                             auto ep = sock.remote_endpoint(sock_err);
 
                              if (sock_err) {
                                 LOG(DEBUG) << "Cannot accept new connection, no access to remoted endpoint: "
                                            << sock_err.value() << ", " << sock_err.message();
                                 StartAccept();
                                 return;
+                             }
+
+                             if (IsEndpointBanned(ep.address(), ep.port())) {
+                               LOG(INFO) << "Block connection from banned endpoint " << ep;
+                               StartAccept();
+                               return;
                              }
 
                              auto new_conn = Connection::Create(*this, io_, std::move(sock));
@@ -382,5 +416,15 @@ bool Host::HasPendingConnection(const NodeId& id) {
 void Host::AddToPendingConn(const NodeId& id) {
   Guard g(pend_conn_mux_);
   pending_connections_.insert(id);
+}
+
+void Host::DropConnections(const NodeId& id) {
+  Guard g(conn_mux_);
+  auto range = connections_.equal_range(id);
+  for (auto it = range.first; it != range.second;) {
+    it->second->Close();
+    it = connections_.erase(it);
+    LOG(INFO) << "Manualy drop connection with " << IdToBase58(id);
+  }
 }
 } // namespace net

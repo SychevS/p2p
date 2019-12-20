@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include "banman.h"
 #include "common.h"
 #include "connection.h"
 #include "routing_table.h"
@@ -21,7 +22,7 @@ class HostEventHandler {
   virtual void OnNodeRemoved(const NodeId&) = 0;
 };
 
-class Host : public RoutingTableEventHandler {
+class Host : public RoutingTableEventHandler, public BanManOwner {
  public:
   Host(const Config&, HostEventHandler&);
   ~Host();
@@ -33,7 +34,17 @@ class Host : public RoutingTableEventHandler {
 
   void Run();
 
+  void Ban(const NodeId&);
+  void Unban(const NodeId&);
+  void ClearBanList();
+
+ protected:
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
+  bool IsEndpointBanned(const bi::address& addr, uint16_t port) override;
+
+  void OnIdBanned(const NodeId&) override;
+  void OnIdUnbanned(const NodeId&) override {}
+
   void OnPacketReceived(Packet&&);
 
   void OnConnected(const NodeId& remote_node, Connection::Ptr);
@@ -53,9 +64,6 @@ class Host : public RoutingTableEventHandler {
   Packet FormPacket(Packet::Type, ByteVector&&, const NodeId& receiver);
   void SendPacket(const NodeEntrance& receiver, Packet&&);
 
-  bool IsBanned(const bi::address&) { return false; }
-  void Ban(const bi::address&) {}
-
   void Connect(const NodeEntrance&);
   Connection::Ptr IsConnected(const NodeId&);
 
@@ -64,6 +72,7 @@ class Host : public RoutingTableEventHandler {
   void AddToPendingConn(const NodeId&);
 
   void ClearSendQueue(const NodeId&);
+  void DropConnections(const NodeId&);
 
   ba::io_context io_;
   const Config net_config_;
@@ -89,7 +98,12 @@ class Host : public RoutingTableEventHandler {
   Mutex pend_conn_mux_;
   std::unordered_set<NodeId> pending_connections_;
 
-  std::atomic<bool> UPnP_success = false;
+  std::atomic<bool> UPnP_success_ = false;
+
+  std::unique_ptr<BanMan> ban_man_ = nullptr;
+
+  // @TODO remove from friends
+  friend class Connection;
 };
 
 } // namespace net
