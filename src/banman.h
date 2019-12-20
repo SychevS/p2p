@@ -16,13 +16,15 @@ struct BanEntry {
   bi::address addr;
   uint16_t port = 0;
 
+  NodeId id{};
+
   friend bool operator<(const BanEntry& lhs, const BanEntry& rhs) {
     if (lhs.addr == rhs.addr) return lhs.port && rhs.port && lhs.port < rhs.port;
     return lhs.addr < rhs.addr;
   }
 
   friend std::ostream& operator<<(std::ostream& os, const BanEntry& b) {
-    os << b.addr << ":" << b.port;
+    os << b.addr << ":" << b.port << "-" << IdToBase58(b.id);
     return os;
   }
 };
@@ -63,14 +65,10 @@ class BanMan {
   void SeedFromFile();
 
   void AddToBanQueue(const NodeId&);
-  void AddToUnbanQueue(const NodeId&);
   void RemoveFromBanQueue(const NodeId&);
-  void RemoveFromUnbanQueue(const NodeId&);
   bool IsWaitingForBan(const NodeId&);
-  bool IsWaitingForUnban(const NodeId&);
 
   void ClearBanQueue();
-  void ClearUnbanQueue();
 
   const std::string ban_file_path_;
   mutable Mutex banned_mux_;
@@ -80,9 +78,6 @@ class BanMan {
 
   Mutex ban_mux_;
   std::unordered_set<NodeId> ban_queue_;
-
-  Mutex unban_mux_;
-  std::unordered_set<NodeId> unban_queue_;
 
   RoutingTablePtr routing_table_;
 };

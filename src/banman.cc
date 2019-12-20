@@ -1,5 +1,6 @@
 #include "banman.h"
 
+#include <algorithm>
 #include <fstream>
 
 #include "routing_table.h"
@@ -37,6 +38,8 @@ void BanMan::SeedFromFile() {
       key.port = std::stoi(std::string(line, delim + 1));
     } catch (...) { return; }
 
+    key.id = IdFromBase58(std::string(line, line.find("-") + 1));
+
     banned_.insert(key);
   }
 }
@@ -67,7 +70,7 @@ void BanMan::Ban(const NodeId& id) {
 
   NodeEntrance contacts;
   if (routing_table_->HasNode(id, contacts)) {
-    Ban(Key{contacts.address, contacts.tcp_port});
+    Ban(Key{contacts.address, contacts.tcp_port, id});
     owner_.OnIdBanned(id);
   } else {
     AddToBanQueue(id);
@@ -83,35 +86,26 @@ void BanMan::Unban(const Key& key) {
 }
 
 void BanMan::Unban(const NodeId& id) {
-  if (!routing_table_) return;
+  Guard g(ban_mux_);
+  auto it = std::find_if(banned_.begin(), banned_.end(),
+                [&id](const BanEntry& ban_entry) { return ban_entry.id == id; });
 
-  NodeEntrance contacts;
-  if (routing_table_->HasNode(id, contacts)) {
-    Unban(Key{contacts.address, contacts.tcp_port});
+  if (it != banned_.end()) {
+    banned_.erase(it);
     owner_.OnIdUnbanned(id);
-  } else {
-    AddToUnbanQueue(id);
-    routing_table_->StartFindNode(id);
   }
 }
 
 void BanMan::OnNodeFound(const NodeEntrance& node) {
   if (IsWaitingForBan(node.id)) {
-    Ban(Key{node.address, node.tcp_port});
+    Ban(Key{node.address, node.tcp_port, node.id});
     RemoveFromBanQueue(node.id);
     owner_.OnIdBanned(node.id);
-  }
-
-  if (IsWaitingForUnban(node.id)) {
-    Unban(Key{node.address, node.tcp_port});
-    RemoveFromUnbanQueue(node.id);
-    owner_.OnIdUnbanned(node.id);
   }
 }
 
 void BanMan::OnNodeNotFound(const NodeId& id) {
   RemoveFromBanQueue(id);
-  RemoveFromUnbanQueue(id);
 }
 
 void BanMan::GetBanned(Container& ret_container) const {
@@ -121,7 +115,6 @@ void BanMan::GetBanned(Container& ret_container) const {
 
 void BanMan::Clear() {
   ClearBanQueue();
-  ClearUnbanQueue();
 
   Guard g(banned_mux_);
   banned_.clear();
@@ -133,19 +126,9 @@ void BanMan::ClearBanQueue() {
   ban_queue_.clear();
 }
 
-void BanMan::ClearUnbanQueue() {
-  Guard g(unban_mux_);
-  unban_queue_.clear();
-}
-
 void BanMan::AddToBanQueue(const NodeId& id) {
   Guard g(ban_mux_);
   ban_queue_.insert(id);
-}
-
-void BanMan::AddToUnbanQueue(const NodeId& id) {
-  Guard g(unban_mux_);
-  unban_queue_.insert(id);
 }
 
 void BanMan::RemoveFromBanQueue(const NodeId& id) {
@@ -153,18 +136,8 @@ void BanMan::RemoveFromBanQueue(const NodeId& id) {
   ban_queue_.erase(id);
 }
 
-void BanMan::RemoveFromUnbanQueue(const NodeId& id) {
-  Guard g(unban_mux_);
-  unban_queue_.erase(id);
-}
-
 bool BanMan::IsWaitingForBan(const NodeId& id) {
   Guard g(ban_mux_);
   return ban_queue_.find(id) != ban_queue_.end();
-}
-
-bool BanMan::IsWaitingForUnban(const NodeId& id) {
-  Guard g(unban_mux_);
-  return unban_queue_.find(id) != unban_queue_.end();
 }
 } // namespace net
