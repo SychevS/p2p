@@ -35,7 +35,7 @@ void BanMan::SeedFromFile() {
 
     try {
       key.addr = bi::make_address(std::string(line, 0, delim));
-      key.port = std::stoi(std::string(line, delim + 1));
+      key.port = static_cast<uint16_t>(std::stoi(std::string(line, delim + 1)));
     } catch (...) { return; }
 
     key.id = IdFromBase58(std::string(line, line.find("-") + 1));
