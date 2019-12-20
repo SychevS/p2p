@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <random>
 #include <thread>
 
 #include "routing_table.h"
@@ -16,38 +15,20 @@ RoutingTable::RoutingTable(ba::io_context& io,
       host_data_(host_data),
       host_(host),
       io_(io),
-      kBucketsNum(static_cast<uint16_t>(host_data.id.size() * 8)) { // num of bits in NodeId
+      kBucketsNum(static_cast<uint16_t>(host_data.id.size() * 8)), // num of bits in NodeId
+      explorer_(*this) {
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];
-  discovery_thread_ = std::thread(&RoutingTable::DiscoveryRoutine, this);
   ping_thread_ = std::thread(&RoutingTable::PingRoutine, this);
+  explorer_.Start();
 }
 
 RoutingTable::~RoutingTable() {
   socket_->Close();
   delete []k_buckets_;
 
-  if (discovery_thread_.joinable()) {
-    discovery_thread_.join();
-  }
-
   if (ping_thread_.joinable()) {
     ping_thread_.join();
-  }
-}
-
-void RoutingTable::DiscoveryRoutine() {
-  std::mt19937 gen(std::random_device().operator()());
-  std::uniform_int_distribution<uint32_t> dist;
-
-  while (true) {
-    std::this_thread::sleep_for(kDiscoveryInterval);
-
-    NodeId random_id;
-    uint32_t* ptr = random_id.GetPtr();
-    std::generate(ptr, ptr + random_id.size() / sizeof(uint32_t), [&gen, &dist]() -> uint32_t { return dist(gen); });
-
-    StartFindNode(random_id);
   }
 }
 
@@ -87,7 +68,7 @@ void RoutingTable::PingRoutine() {
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
   if (total_nodes_.load() == 0) {
-    StartFindNode(host_data_.id, &nodes);
+    explorer_.Find(host_data_.id, nodes);
   } else {
     Guard g(k_bucket_mux_);
     for (auto& n : nodes) {
@@ -101,22 +82,8 @@ bool RoutingTable::HasNode(const NodeId& id, NodeEntrance& result) {
   return k_buckets_[KBucketIndex(id)].Get(id, result);
 }
 
-void RoutingTable::StartFindNode(const NodeId& id, const std::vector<NodeEntrance>* find_list) {
-  Guard g(find_node_mux_);
-  auto& nodes_to_query = find_node_sent_[id];
-  if (nodes_to_query.size() != 0) {
-    LOG(DEBUG) << "Find node procedure has already been started for this node.";
-    return;
-  }
-
-  auto nearest_nodes = NearestNodes(id);
-  auto& nodes = find_list ? *find_list : nearest_nodes;
-
-  FindNodeDatagram d(host_data_, id);
-  for (auto& n : nodes) {
-    nodes_to_query.push_back(n.id);
-    socket_->Send(d.ToUdp(n));
-  }
+void RoutingTable::StartFindNode(const NodeId& id) {
+  explorer_.Find(id, NearestNodes(id));
 }
 
 std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_from) {
@@ -156,7 +123,7 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
       HandleFindNode(*packet);
       break;
     case FindNodeRespDatagram::type :
-      HandleFindNodeReps(*packet);
+      explorer_.CheckFindNodeResponce(*packet);
   }
 }
 
@@ -181,6 +148,7 @@ void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
 
   if (good_resp) {
     UpdateKBuckets(d.node_from);
+    explorer_.CheckPingResponce(d.node_from);
   }
 }
 
@@ -191,50 +159,6 @@ void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
   FindNodeRespDatagram answer(host_data_, find_node.target, std::move(requested_nodes));
   socket_->Send(answer.ToUdp(d.node_from));
   UpdateKBuckets(d.node_from);
-}
-
-void RoutingTable::HandleFindNodeReps(const KademliaDatagram& d) {
-  auto& find_node_resp = dynamic_cast<const FindNodeRespDatagram&>(d);
-
-  Guard g(find_node_mux_);
-  if (find_node_sent_.find(find_node_resp.target) == find_node_sent_.end()) return;
-
-  auto& already_queried = find_node_sent_[find_node_resp.target];
-  if (std::find(already_queried.begin(), already_queried.end(),
-              find_node_resp.node_from.id) == already_queried.end()) {
-    LOG(DEBUG) << "Unexpected find node responce.";
-    return;
-  }
-
-  auto& closest_nodes = find_node_resp.closest;
-  UpdateKBuckets(closest_nodes);
-  UpdateKBuckets(find_node_resp.node_from);
-
-  auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
-                [&find_node_resp](const auto& n) {
-                  return n.id == find_node_resp.target;
-                });
-
-  if (it == closest_nodes.end()) {
-    if (already_queried.size() != 0) {
-      bool no_more_to_request = true;
-      for (auto& n : closest_nodes) {
-        if (std::find(already_queried.begin(), already_queried.end(),
-                      n.id) == already_queried.end()) {
-          no_more_to_request = false;
-          FindNodeDatagram new_request(host_data_, find_node_resp.target);
-          socket_->Send(new_request.ToUdp(n));
-          already_queried.push_back(n.id);
-        }
-      }
-      if (no_more_to_request) {
-        find_node_sent_.erase(find_node_resp.target);
-      }
-    }
-  } else {
-    find_node_sent_.erase(find_node_resp.target);
-    NotifyHost(*it, RoutingTableEventType::kNodeFound);
-  }
 }
 
 void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {

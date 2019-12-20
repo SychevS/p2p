@@ -41,7 +41,7 @@ class RoutingTable : public UdpSocketEventHandler {
   void AddNodes(const std::vector<NodeEntrance>&);
 
   bool HasNode(const NodeId&, NodeEntrance&);
-  void StartFindNode(const NodeId&, const std::vector<NodeEntrance>* find_list = nullptr);
+  void StartFindNode(const NodeId&);
 
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
@@ -49,6 +49,12 @@ class RoutingTable : public UdpSocketEventHandler {
   static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
 
   static constexpr uint16_t kIvalidIndex = std::numeric_limits<uint16_t>::max();
+
+ protected:
+  void OnSocketClosed(const boost::system::error_code&) override {}
+
+  void OnPacketReceived(const bi::udp::endpoint& from,
+                        const ByteVector& data) override;
 
  private:
   static constexpr uint16_t kMaxDatagramSize = 1000;
@@ -64,33 +70,66 @@ class RoutingTable : public UdpSocketEventHandler {
 
   static constexpr uint8_t kMaxPingsBeforeRemove = 3;
   static constexpr std::chrono::seconds kPingExpirationSeconds{8};
+
   static constexpr std::chrono::seconds kDiscoveryInterval{60};
-
-  uint16_t KBucketIndex(const NodeId& id) const noexcept;
-
-  void OnSocketClosed(const boost::system::error_code&) override {}
-
-  void OnPacketReceived(const bi::udp::endpoint& from,
-                        const ByteVector& data) override;
+  static constexpr std::chrono::seconds kDiscoveryExpirationSeconds{60};
 
   void HandlePing(const KademliaDatagram&);
   void HandlePingResp(const KademliaDatagram&);
   void HandleFindNode(const KademliaDatagram&);
-  void HandleFindNodeReps(const KademliaDatagram&);
+
+  uint16_t KBucketIndex(const NodeId& id) const noexcept;
 
   void UpdateKBuckets(const NodeEntrance&);
   void UpdateKBuckets(const std::vector<NodeEntrance>&);
-  void SendPing(const NodeEntrance& target, KBucket& bucket,
-                std::shared_ptr<NodeEntrance> replacer = nullptr);
+
+  void OnNodeFound(const NodeEntrance&) {}
+  void OnNodeNotFound(const NodeId&) {}
 
   void NotifyHost(const NodeEntrance& node, RoutingTableEventType);
-
-  void DiscoveryRoutine();
-  void PingRoutine();
 
   // Returns k closest nodes to target id.
   // Or total_nodes_ nodes if total_nodes_ < k.
   std::vector<NodeEntrance> NearestNodes(const NodeId&);
+
+  struct Timer {
+    ba::deadline_timer clock;
+    bool expired;
+
+    Timer(ba::io_context& io, size_t seconds)
+        : clock(io, boost::posix_time::seconds(seconds)),
+          expired(false) {}
+  };
+
+  using TimerPtr = std::shared_ptr<Timer>;
+
+  class NetExplorer {
+   public:
+    NetExplorer(RoutingTable&);
+    ~NetExplorer();
+
+    void Start();
+    void Find(const NodeId&, const std::vector<NodeEntrance>& find_list);
+    void CheckFindNodeResponce(const KademliaDatagram&);
+    void CheckPingResponce(const NodeEntrance&);
+
+   private:
+    void DiscoveryRoutine();
+
+    RoutingTable& routing_table_;
+    std::thread discovery_thread_;
+
+    Mutex timers_mux_;
+    std::list<TimerPtr> timers_;
+
+    Mutex find_node_mux_;
+    std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
+  };
+
+  void SendPing(const NodeEntrance& target, KBucket& bucket,
+                std::shared_ptr<NodeEntrance> replacer = nullptr);
+
+  void PingRoutine();
 
   UdpSocket<kMaxDatagramSize>::Ptr socket_;
   const NodeEntrance host_data_;
@@ -104,27 +143,14 @@ class RoutingTable : public UdpSocketEventHandler {
   ba::io_context& io_;
   std::atomic<size_t> total_nodes_{0};
 
-  Mutex find_node_mux_;
-  std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
-
   const uint16_t kBucketsNum;
-
-  struct Timer {
-    ba::deadline_timer clock;
-    bool expired;
-
-    Timer(ba::io_context& io, size_t seconds)
-        : clock(io, boost::posix_time::seconds(seconds)),
-          expired(false) {}
-  };
-
-  using TimerPtr = std::shared_ptr<Timer>;
 
   Mutex timers_mux_;
   std::list<TimerPtr> ping_timers_;
 
-  std::thread discovery_thread_;
   std::thread ping_thread_;
+
+  NetExplorer explorer_;
 };
 
 inline NodeId RoutingTable::Distance(const NodeId& a, const NodeId& b) {
