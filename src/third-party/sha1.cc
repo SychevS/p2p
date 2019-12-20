@@ -287,6 +287,5 @@ void SHA1(
     for (ii=0; ii<static_cast<unsigned int>(len); ii+=1)
         SHA1Update(&ctx, reinterpret_cast<const unsigned char*>(str) + ii, 1);
     SHA1Final(reinterpret_cast<unsigned char*>(hash_out), &ctx);
-    hash_out[20] = '\0';
 }
 
