@@ -67,14 +67,16 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
     case RoutingTableEventType::kNodeFound : {
       ban_man_->OnNodeFound(node);
 
-      if (!IsConnected(node.id)) {
+      auto conn = IsConnected(node.id);
+      if (!conn) {
         Connect(node);
+      } else {
+        CheckSendQueue(node.id, conn);
       }
       break;
     }
 
     case RoutingTableEventType::kNodeNotFound :
-      LOG(INFO) << "ROUTING TABLE: node not found " << IdToBase58(node.id);
       ban_man_->OnNodeNotFound(node.id);
       ClearSendQueue(node.id);
       RemoveFromPendingConn(node.id);
@@ -363,15 +365,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
     RemoveFromPendingConn(remote_node);
   }
 
-  Guard g1(send_mux_);
-  auto it = send_queue_.find(remote_node);
-  if (it != send_queue_.end()) {
-    packets_to_send_ -= it->second.size();
-    for (auto& p : it->second) {
-      new_conn->Send(std::move(p));
-    }
-    send_queue_.erase(it);
-  }
+  CheckSendQueue(remote_node, new_conn);
 }
 
 void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
@@ -399,6 +393,18 @@ void Host::ClearSendQueue(const NodeId& id) {
   auto it = send_queue_.find(id);
   if (it != send_queue_.end()) {
     packets_to_send_ -= it->second.size();
+    send_queue_.erase(it);
+  }
+}
+
+void Host::CheckSendQueue(const NodeId& id, Connection::Ptr conn) {
+  Guard g1(send_mux_);
+  auto it = send_queue_.find(id);
+  if (it != send_queue_.end()) {
+    packets_to_send_ -= it->second.size();
+    for (auto& p : it->second) {
+      conn->Send(std::move(p));
+    }
     send_queue_.erase(it);
   }
 }

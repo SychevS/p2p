@@ -72,6 +72,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   void AddToPendingConn(const NodeId&);
 
   void ClearSendQueue(const NodeId&);
+  void CheckSendQueue(const NodeId&, Connection::Ptr);
   void DropConnections(const NodeId&);
 
   ba::io_context io_;
