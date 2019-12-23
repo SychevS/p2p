@@ -40,45 +40,45 @@ void RoutingTable::NetExplorer::DiscoveryRoutine() {
 }
 
 void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEntrance>& find_list) {
-  Guard g(find_node_mux_);
-  auto& nodes_to_query = find_node_sent_[id];
-  if (nodes_to_query.size() != 0) {
-    LOG(DEBUG) << "Find node procedure has already been started for this node.";
-    return;
-  }
-
   {
-   Guard lock(timers_mux_);
-   timers_.push_back(std::make_shared<Timer>(routing_table_.io_, kDiscoveryExpirationSeconds.count()));
-   auto timer = timers_.back();
+   Guard g(find_node_mux_);
+   auto& nodes_to_query = find_node_sent_[id];
+   if (nodes_to_query.size() != 0) {
+     LOG(DEBUG) << "Find node procedure has already been started for this node.";
+     return;
+   }
 
-   auto callback = [this, timer, id](const boost::system::error_code&) {
-                     {
-                      Guard g(timers_mux_);
-                      timer->expired = true;
-                     }
-
-                     bool node_found = true;
-                     {
-                      Guard g(find_node_mux_);
-                      if (find_node_sent_.erase(id)) {
-                        node_found = false;
-                      }
-                     }
-
-                     if (!node_found) {
-                       routing_table_.OnNodeNotFound(id);
-                     }
-                   };
-
-   timer->clock.async_wait(std::move(callback));
+   FindNodeDatagram d(routing_table_.host_data_, id);
+   for (auto& node : find_list) {
+     nodes_to_query.push_back(node.id);
+     routing_table_.socket_->Send(d.ToUdp(node));
+   }
   }
 
-  FindNodeDatagram d(routing_table_.host_data_, id);
-  for (auto& node : find_list) {
-    nodes_to_query.push_back(node.id);
-    routing_table_.socket_->Send(d.ToUdp(node));
-  }
+  Guard lock(timers_mux_);
+  timers_.push_back(std::make_shared<Timer>(routing_table_.io_, kDiscoveryExpirationSeconds.count()));
+  auto timer = timers_.back();
+
+  auto callback = [this, timer, id](const boost::system::error_code&) {
+                    {
+                     Guard g(timers_mux_);
+                     timer->expired = true;
+                    }
+
+                    bool node_found = true;
+                    {
+                     Guard g(find_node_mux_);
+                     if (find_node_sent_.erase(id)) {
+                       node_found = false;
+                     }
+                    }
+
+                    if (!node_found) {
+                      routing_table_.OnNodeNotFound(id);
+                    }
+                  };
+
+  timer->clock.async_wait(std::move(callback));
 }
 
 void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d) {
