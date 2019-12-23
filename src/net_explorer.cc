@@ -48,7 +48,7 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
   }
 
   {
-   Guard g(timers_mux_);
+   Guard lock(timers_mux_);
    timers_.push_back(std::make_shared<Timer>(routing_table_.io_, kDiscoveryExpirationSeconds.count()));
    auto timer = timers_.back();
 
