@@ -74,7 +74,6 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
    timer->clock.async_wait(std::move(callback));
   }
 
-
   FindNodeDatagram d(routing_table_.host_data_, id);
   for (auto& node : find_list) {
     nodes_to_query.push_back(node.id);
@@ -84,49 +83,59 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
 
 void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d) {
   auto& find_node_resp = dynamic_cast<const FindNodeRespDatagram&>(d);
+  NodeEntrance founded_node;
 
-  Guard g(find_node_mux_);
-  if (find_node_sent_.find(find_node_resp.target) == find_node_sent_.end()) return;
+  {
+   Guard g(find_node_mux_);
+   if (find_node_sent_.find(find_node_resp.target) == find_node_sent_.end()) return;
 
-  auto& already_queried = find_node_sent_[find_node_resp.target];
-  if (std::find(already_queried.begin(), already_queried.end(),
-              find_node_resp.node_from.id) == already_queried.end()) {
-    LOG(DEBUG) << "Unexpected find node responce.";
-    return;
+   auto& already_queried = find_node_sent_[find_node_resp.target];
+   if (std::find(already_queried.begin(), already_queried.end(),
+                 find_node_resp.node_from.id) == already_queried.end()) {
+     LOG(DEBUG) << "Unexpected find node responce.";
+     return;
+   }
+
+   auto& closest_nodes = find_node_resp.closest;
+   routing_table_.UpdateKBuckets(find_node_resp.node_from);
+
+   auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
+                 [&find_node_resp](const auto& n) {
+                   return n.id == find_node_resp.target;
+                 });
+
+   if (it == closest_nodes.end()) {
+     bool no_more_to_request = true;
+     for (auto& n : closest_nodes) {
+       if (std::find(already_queried.begin(), already_queried.end(),
+                     n.id) == already_queried.end()) {
+         no_more_to_request = false;
+         FindNodeDatagram new_request(routing_table_.host_data_, find_node_resp.target);
+         routing_table_.socket_->Send(new_request.ToUdp(n));
+         already_queried.push_back(n.id);
+       }
+     }
+     if (no_more_to_request) {
+       find_node_sent_.erase(find_node_resp.target);
+       routing_table_.OnNodeNotFound(find_node_resp.target);
+     }
+     return;
+   }
+
+   founded_node = *it;
   }
 
-  auto& closest_nodes = find_node_resp.closest;
-//  UpdateKBuckets(closest_nodes);
-  routing_table_.UpdateKBuckets(find_node_resp.node_from);
-
-  auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
-                [&find_node_resp](const auto& n) {
-                  return n.id == find_node_resp.target;
-                });
-
-  if (it == closest_nodes.end()) {
-    if (already_queried.size() != 0) {
-      bool no_more_to_request = true;
-      for (auto& n : closest_nodes) {
-        if (std::find(already_queried.begin(), already_queried.end(),
-                      n.id) == already_queried.end()) {
-          no_more_to_request = false;
-          FindNodeDatagram new_request(routing_table_.host_data_, find_node_resp.target);
-          routing_table_.socket_->Send(new_request.ToUdp(n));
-          already_queried.push_back(n.id);
-        }
-      }
-      if (no_more_to_request) {
-        find_node_sent_.erase(find_node_resp.target);
-      }
-    }
-  } else {
-    find_node_sent_.erase(find_node_resp.target);
-    routing_table_.NotifyHost(*it, RoutingTableEventType::kNodeFound);
-  }
+  Guard g(routing_table_.k_bucket_mux_);
+  auto& bucket = routing_table_.k_buckets_[routing_table_.KBucketIndex(founded_node.id)];
+  routing_table_.SendPing(founded_node, bucket);
 }
 
-void RoutingTable::NetExplorer::CheckPingResponce(const NodeEntrance&) {
-
+void RoutingTable::NetExplorer::CheckPingResponce(const NodeEntrance& node) {
+  Guard g(find_node_mux_);
+  auto it = find_node_sent_.find(node.id);
+  if (it != find_node_sent_.end()) {
+    find_node_sent_.erase(it);
+    routing_table_.OnNodeFound(node);
+  }
 }
 } // namespace net

@@ -73,6 +73,13 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
       break;
     }
 
+    case RoutingTableEventType::kNodeNotFound :
+      LOG(INFO) << "ROUTING TABLE: node not found " << IdToBase58(node.id);
+      ban_man_->OnNodeNotFound(node.id);
+      ClearSendQueue(node.id);
+      RemoveFromPendingConn(node.id);
+      break;
+
     case RoutingTableEventType::kNodeAdded :
       LOG(INFO) << "ROUTING TABLE: add " << IdToBase58(node.id);
       event_handler_.OnNodeDiscovered(node.id);

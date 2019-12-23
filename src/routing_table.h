@@ -19,7 +19,8 @@ namespace net {
 enum class RoutingTableEventType {
   kNodeAdded,
   kNodeRemoved,
-  kNodeFound
+  kNodeFound,
+  kNodeNotFound
 };
 
 // Routing table's owner must implement this interface
@@ -72,7 +73,7 @@ class RoutingTable : public UdpSocketEventHandler {
   static constexpr std::chrono::seconds kPingExpirationSeconds{8};
 
   static constexpr std::chrono::seconds kDiscoveryInterval{60};
-  static constexpr std::chrono::seconds kDiscoveryExpirationSeconds{60};
+  static constexpr std::chrono::seconds kDiscoveryExpirationSeconds{30};
 
   void HandlePing(const KademliaDatagram&);
   void HandlePingResp(const KademliaDatagram&);
@@ -83,8 +84,8 @@ class RoutingTable : public UdpSocketEventHandler {
   void UpdateKBuckets(const NodeEntrance&);
   void UpdateKBuckets(const std::vector<NodeEntrance>&);
 
-  void OnNodeFound(const NodeEntrance&) {}
-  void OnNodeNotFound(const NodeId&) {}
+  void OnNodeFound(const NodeEntrance&);
+  void OnNodeNotFound(const NodeId&);
 
   void NotifyHost(const NodeEntrance& node, RoutingTableEventType);
 

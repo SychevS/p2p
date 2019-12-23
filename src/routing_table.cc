@@ -225,8 +225,10 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
                         resendPing = false;
                         ping_sent_.erase(it);
 
-                        bucket.Evict(target.id);
-                        NotifyHost(target, RoutingTableEventType::kNodeRemoved);
+                        if (bucket.Exists(target.id)) {
+                          bucket.Evict(target.id);
+                          NotifyHost(target, RoutingTableEventType::kNodeRemoved);
+                        }
 
                         if (replacer) {
                           bucket.AddNode(*replacer);
@@ -273,6 +275,16 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
     ret.emplace_back(std::move(n.second));
   }
   return ret;
+}
+
+void RoutingTable::OnNodeFound(const NodeEntrance& node) {
+  NotifyHost(node, RoutingTableEventType::kNodeFound);
+}
+
+void RoutingTable::OnNodeNotFound(const NodeId& id) {
+  NodeEntrance node;
+  node.id = id;
+  NotifyHost(node, RoutingTableEventType::kNodeNotFound);
 }
 
 void RoutingTable::NotifyHost(const NodeEntrance& node, RoutingTableEventType event) {
