@@ -42,6 +42,7 @@ struct NodeEntrance {
   uint16_t tcp_port;
 
   friend bool operator==(const NodeEntrance& lhs, const NodeEntrance& rhs);
+  friend bool operator!=(const NodeEntrance& lhs, const NodeEntrance& rhs);
 
   void Put(Serializer& s) const;
   bool Get(Unserializer& u);

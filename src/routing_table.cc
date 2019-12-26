@@ -112,6 +112,11 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
   auto packet = KademliaDatagram::ReinterpretUdpPacket(from, data);
   if (!packet) return;
 
+  if (!CheckEndpoint(*packet)) {
+    LOG(INFO) << "Endpoint check failed from " << from.address() << ", " << from.port();
+    return;
+  }
+
   switch (packet->DatagramType()) {
     case PingDatagram::type :
       HandlePing(*packet);
@@ -125,6 +130,15 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
     case FindNodeRespDatagram::type :
       explorer_.CheckFindNodeResponce(*packet);
   }
+}
+
+bool RoutingTable::CheckEndpoint(const KademliaDatagram& d) {
+  NodeEntrance existing_contacts;
+  auto& node_from = d.node_from;
+  if (HasNode(node_from.id, existing_contacts) && node_from != existing_contacts) {
+    return false;
+  }
+  return true;
 }
 
 void RoutingTable::HandlePing(const KademliaDatagram& d) {

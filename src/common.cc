@@ -16,6 +16,10 @@ bool operator==(const NodeEntrance& lhs, const NodeEntrance& rhs) {
          lhs.tcp_port == rhs.tcp_port;
 }
 
+bool operator!=(const NodeEntrance& lhs, const NodeEntrance& rhs) {
+  return !(lhs == rhs);
+}
+
 void NodeEntrance::Put(Serializer& s) const {
   PutId(s);
   s.Put(address.to_string());

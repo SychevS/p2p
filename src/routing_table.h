@@ -75,6 +75,8 @@ class RoutingTable : public UdpSocketEventHandler {
   static constexpr std::chrono::seconds kDiscoveryInterval{60};
   static constexpr std::chrono::seconds kDiscoveryExpirationSeconds{30};
 
+  bool CheckEndpoint(const KademliaDatagram&);
+
   void HandlePing(const KademliaDatagram&);
   void HandlePingResp(const KademliaDatagram&);
   void HandleFindNode(const KademliaDatagram&);
