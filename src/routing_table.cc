@@ -133,6 +133,10 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
 }
 
 bool RoutingTable::CheckEndpoint(const KademliaDatagram& d) {
+  if (host_data_.id == d.node_from.id) {
+    return false;
+  }
+
   NodeEntrance existing_contacts;
   auto& node_from = d.node_from;
   if (HasNode(node_from.id, existing_contacts) && node_from != existing_contacts) {
