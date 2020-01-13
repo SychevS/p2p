@@ -245,11 +245,13 @@ void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::sh
 
                         if (bucket.Exists(target.id)) {
                           bucket.Evict(target.id);
+                          --total_nodes_;
                           NotifyHost(target, RoutingTableEventType::kNodeRemoved);
                         }
 
                         if (replacer) {
                           bucket.AddNode(*replacer);
+                          ++total_nodes_;
                           NotifyHost(*replacer, RoutingTableEventType::kNodeAdded);
                         }
                       }
