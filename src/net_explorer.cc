@@ -105,21 +105,15 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
                  });
 
    if (it == closest_nodes.end()) {
-     bool no_more_to_request = true;
      for (auto& n : closest_nodes) {
        if (n.id == routing_table_.host_data_.id) continue;
 
        if (std::find(already_queried.begin(), already_queried.end(),
                      n.id) == already_queried.end()) {
-         no_more_to_request = false;
          FindNodeDatagram new_request(routing_table_.host_data_, find_node_resp.target);
          routing_table_.socket_->Send(new_request.ToUdp(n));
          already_queried.push_back(n.id);
        }
-     }
-     if (no_more_to_request) {
-       find_node_sent_.erase(find_node_resp.target);
-       routing_table_.OnNodeNotFound(find_node_resp.target);
      }
      return;
    }
