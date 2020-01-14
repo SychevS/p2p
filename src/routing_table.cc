@@ -72,6 +72,7 @@ void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
   } else {
     Guard g(k_bucket_mux_);
     for (auto& n : nodes) {
+      if (n.id == host_data_.id) continue;
       SendPing(n, k_buckets_[KBucketIndex(n.id)]);
     }
   }

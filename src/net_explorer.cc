@@ -122,7 +122,11 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
   }
 
   Guard g(routing_table_.k_bucket_mux_);
-  auto& bucket = routing_table_.k_buckets_[routing_table_.KBucketIndex(founded_node.id)];
+
+  auto index = routing_table_.KBucketIndex(founded_node.id);
+  if (index == kIvalidIndex) return;
+
+  auto& bucket = routing_table_.k_buckets_[index];
   routing_table_.SendPing(founded_node, bucket);
 }
 
