@@ -46,6 +46,8 @@ class RoutingTable : public UdpSocketEventHandler {
 
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
+  void UpdateTcpPort(const NodeId&, uint16_t port);
+
   static NodeId Distance(const NodeId&, const NodeId&);
   static uint16_t KBucketIndex(const NodeId& target, const NodeId& id);
 

@@ -359,6 +359,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
 
   if (!new_conn->IsActive()) {
     new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, remote_node));
+    routing_table_->UpdateTcpPort(remote_node, new_conn->GetEndpoint().port());
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
   } else {
     LOG(INFO) << "New active connection with " << IdToBase58(remote_node);

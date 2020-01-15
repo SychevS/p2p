@@ -107,6 +107,21 @@ std::vector<NodeEntrance> RoutingTable::GetBroadcastList(const NodeId& received_
   return ret;
 }
 
+void RoutingTable::UpdateTcpPort(const NodeId& id, uint16_t port) {
+  auto index = KBucketIndex(id);
+  if (index == kIvalidIndex) return;
+
+  NodeEntrance contacts;
+
+  Guard g(k_bucket_mux_);
+  auto& bucket = k_buckets_[index];
+
+  if (bucket.Get(id, contacts) && port != contacts.tcp_port) {
+    contacts.tcp_port = port;
+    bucket.Update(contacts);
+  }
+}
+
 void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVector& data) {
   if (host_.IsEndpointBanned(from.address(), from.port())) return;
 
@@ -140,10 +155,10 @@ bool RoutingTable::CheckEndpoint(const KademliaDatagram& d) {
 
   NodeEntrance existing_contacts;
   auto& node_from = d.node_from;
-  if (HasNode(node_from.id, existing_contacts) && node_from != existing_contacts) {
-    return false;
-  }
-  return true;
+  if (!HasNode(node_from.id, existing_contacts)) return true;
+
+  return node_from.address == existing_contacts.address &&
+         node_from.udp_port == existing_contacts.udp_port;
 }
 
 void RoutingTable::HandlePing(const KademliaDatagram& d) {

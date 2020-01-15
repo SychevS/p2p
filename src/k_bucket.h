@@ -16,6 +16,8 @@ class KBucket {
   bool Get(const NodeId&, NodeEntrance&) const noexcept;
   size_t Size() const noexcept;
 
+  void Update(const NodeEntrance&);
+
   void Promote(const NodeId&);
   void Evict(const NodeId&);
 
@@ -53,6 +55,13 @@ inline bool KBucket::Get(const NodeId& id, NodeEntrance& ent) const noexcept {
 
 inline size_t KBucket::Size() const noexcept {
   return nodes_.size();
+}
+
+inline void KBucket::Update(const NodeEntrance& new_contacts) {
+  auto it = std::find_if(nodes_.begin(), nodes_.end(),
+                [&new_contacts](const NodeEntrance& e) { return e.id == new_contacts.id; });
+  if (it == nodes_.end()) return;
+  *it = new_contacts;
 }
 
 inline void KBucket::Promote(const NodeId& id) {
