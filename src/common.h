@@ -116,21 +116,7 @@ struct Packet {
   ByteVector data;
 };
 
-// Helper function to determine if an address falls within one of the reserved ranges
-// For V4:
-// Class A "10.*", Class B "172.[16->31].*", Class C "192.168.*"
-bool IsPrivateAddress(const bi::address& address_to_check);
-bool IsPrivateAddress(const std::string& address_to_check);
-
 std::vector<NodeEntrance> GetDefaultBootNodes();
-
-// Return public endpoint of upnp interface.
-// If successful o_upnpifaddr will be a private interface address
-// and endpoint will contain public address and port.
-bi::tcp::endpoint TraverseNAT(const std::set<bi::address>& if_addresses, 
-                              uint16_t listen_port, bi::address& o_upnp_interface_addr);
-
-void DropRedirectUPnP(uint16_t port);
 
 std::string IdToBase58(const NodeId&);
 NodeId IdFromBase58(const std::string&);

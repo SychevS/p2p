@@ -10,6 +10,7 @@
 #include "banman.h"
 #include "common.h"
 #include "connection.h"
+#include "network.h"
 #include "routing_table.h"
 
 namespace net {
@@ -52,7 +53,6 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   void OnPendingConnectionError(const NodeId&, Connection::DropReason);
 
  private:
-  void SetUpMyContacts();
   void TcpListen();
   void StartAccept();
 
@@ -76,11 +76,11 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   void DropConnections(const NodeId&);
 
   ba::io_context io_;
-  const Config net_config_;
   bi::tcp::acceptor acceptor_;
   HostEventHandler& event_handler_;
-  NodeEntrance my_contacts_;
+  NodeId id_;
   std::shared_ptr<RoutingTable> routing_table_;
+  std::shared_ptr<Network> network_;
 
   Mutex broadcast_id_mux_;
   constexpr static size_t kMaxBroadcastIds_ = 10000;
@@ -98,8 +98,6 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
 
   Mutex pend_conn_mux_;
   std::unordered_set<NodeId> pending_connections_;
-
-  std::atomic<bool> UPnP_success_ = false;
 
   std::unique_ptr<BanMan> ban_man_ = nullptr;
 

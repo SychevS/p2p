@@ -69,6 +69,8 @@ add_library(${PROJECT_NAME} STATIC
   src/kademlia_datagram.h
   src/kademlia_datagram.cc
   src/net_explorer.cc
+  src/network.h
+  src/network.cc
   src/routing_table.h
   src/routing_table.cc
   src/types.h

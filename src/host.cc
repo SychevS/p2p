@@ -1,23 +1,31 @@
 #include "host.h"
 
-#include <stdexcept>
-
-#include "utils/localip.h"
 #include "utils/log.h"
 
 namespace net {
 
 Host::Host(const Config& config, HostEventHandler& event_handler)
     : io_(2),
-      net_config_(config),
       acceptor_(io_),
       event_handler_(event_handler),
       routing_table_(nullptr),
+      network_(nullptr),
       packets_to_send_(0) {
   InitLogger();
-  SetUpMyContacts();
 
-  routing_table_ = std::make_shared<RoutingTable>(io_, my_contacts_,
+  try {
+    network_ = std::make_shared<Network>(config);
+  } catch (const std::exception& e) {
+    LOG(FATAL) << e.what();
+    throw;
+  } catch (...) {
+    LOG(FATAL) << "Problems with network!";
+    throw;
+  }
+
+  id_ = network_->GetHostContacts().id;
+
+  routing_table_ = std::make_shared<RoutingTable>(io_, network_->GetHostContacts(),
       static_cast<RoutingTableEventHandler&>(*this));
 
   ban_man_ = std::make_unique<BanMan>(kBanFileName, static_cast<BanManOwner&>(*this),
@@ -30,16 +38,14 @@ Host::~Host() {
   if (working_thread_.joinable()) {
     working_thread_.join();
   }
-
-  if (UPnP_success_.load()) {
-    DropRedirectUPnP(my_contacts_.tcp_port);
-  }
 }
 
 void Host::Run() {
+  auto& config = network_->GetConfig();
+
   routing_table_->AddNodes(
-          net_config_.use_default_boot_nodes ?
-          GetDefaultBootNodes() : net_config_.custom_boot_nodes);
+          config.use_default_boot_nodes ?
+          GetDefaultBootNodes() : config.custom_boot_nodes);
 
   working_thread_ = std::thread([this] { io_.run(); });
 }
@@ -99,11 +105,11 @@ bool Host::IsEndpointBanned(const bi::address& addr, uint16_t port) {
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
-  if (packet.IsDirect() && packet.header.receiver == my_contacts_.id) {
+  if (packet.IsDirect() && packet.header.receiver == id_) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   } else if (packet.IsBroadcast() && !IsDuplicate(packet)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.receiver);
-    packet.header.receiver = my_contacts_.id;
+    packet.header.receiver = id_;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
@@ -135,7 +141,7 @@ void Host::InsertNewBroadcastId(const Packet::Id& id) {
 }
 
 void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
-  if (receiver == my_contacts_.id) {
+  if (receiver == id_) {
     return;
   }
 
@@ -166,9 +172,9 @@ void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
-  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), my_contacts_.id);
+  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), id_);
   InsertNewBroadcast(pack);
-  auto nodes = routing_table_->GetBroadcastList(my_contacts_.id);
+  auto nodes = routing_table_->GetBroadcastList(id_);
   for (const auto& n : nodes) {
     SendDirect(n, pack);
   }
@@ -181,7 +187,7 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId& rece
   auto& h = result.header;
   h.type = type;
   h.data_size = result.data.size();
-  h.sender = my_contacts_.id;
+  h.sender = id_;
   h.receiver = receiver;
 
   return result;
@@ -236,80 +242,22 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
   routing_table_->AddNodes(nodes);
 }
 
-void Host::SetUpMyContacts() {
-  auto available_interfaces = GetLocalIp4();
-
-  if (available_interfaces.empty()) {
-    throw std::domain_error("no network");
-  }
-
-  std::string net_info = "Available net interfaces: ";
-  for (auto& i : available_interfaces) {
-    net_info += i.to_string() + " ";
-  }
-  LOG(INFO) << net_info;
-
-  my_contacts_.id = net_config_.id;
-  my_contacts_.address = net_config_.listen_address.empty() ?
-                         bi::address() :
-                         bi::make_address(net_config_.listen_address);
-  my_contacts_.udp_port = net_config_.listen_port;
-  my_contacts_.tcp_port = net_config_.listen_port;
-
-  if (my_contacts_.address.is_unspecified()) {
-    LOG(INFO) << "IP address in config is unspecified.";
-    for (auto& addr : available_interfaces) {
-      if (!IsPrivateAddress(addr)) {
-        my_contacts_.address = addr;
-        LOG(INFO) << "Has public address in available interfaces " << addr;
-        return;
-      }
-    }
-
-    LOG(INFO) << "No public addresses available.";
-    my_contacts_.address = *available_interfaces.begin();
-  }
-
-  if (!IsPrivateAddress(my_contacts_.address) && available_interfaces.find(my_contacts_.address) != available_interfaces.end()) {
-    LOG(INFO) << "IP address from config is public: " << my_contacts_.address << ". UPnP disabled.";
-    return;
-  }
-
-  if (net_config_.traverse_nat) {
-    LOG(INFO) << "IP address from config is private: " << my_contacts_.address
-              << ". UPnP enabled, start punching through NAT.";
-
-    bi::address private_addr;
-    auto public_ep = TraverseNAT(available_interfaces, my_contacts_.tcp_port, private_addr);
-
-    if (public_ep.address().is_unspecified()) {
-      LOG(INFO) << "UPnP returned upspecified address.";
-    } else {
-      UPnP_success_.store(true);
-      my_contacts_.udp_port = public_ep.port();
-      my_contacts_.tcp_port = public_ep.port();
-    }
-  } else {
-    LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
-              << my_contacts_.address;
-  }
-
-  my_contacts_.address = bi::make_address(kAllInterfaces);
-}
-
 void Host::TcpListen() {
+  auto& contacts = network_->GetHostContacts();
+
   try {
-    bi::tcp::endpoint ep(my_contacts_.address, my_contacts_.tcp_port);
+    bi::tcp::endpoint ep(contacts.address, contacts.tcp_port);
     acceptor_.open(ep.protocol());
     acceptor_.set_option(ba::socket_base::reuse_address(true));
     acceptor_.bind(ep);
     acceptor_.listen();
   } catch (...) {
-    LOG(ERROR) << "Could not start listening on port " << my_contacts_.tcp_port << ".";
+    LOG(ERROR) << "Could not start listening on port " << contacts.tcp_port << ".";
+    return;
   }
 
   if (acceptor_.is_open()) {
-    LOG(INFO) << "Start listen on port " << my_contacts_.tcp_port;
+    LOG(INFO) << "Start listen on port " << contacts.tcp_port;
     StartAccept();
   }
 }
