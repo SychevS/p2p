@@ -234,7 +234,9 @@ void Host::Connect(const NodeEntrance& peer) {
 
   auto new_conn = Connection::Create(*this, io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
-                    FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, peer.id));
+                    FormPacket(Packet::Type::kRegistration,
+                               Network::Instance().GetRegistrationData(),
+                               peer.id));
 }
 
 void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
@@ -300,13 +302,16 @@ void Host::StartAccept() {
   }
 }
 
-void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
+void Host::OnConnected(Packet&& conn_pack, Connection::Ptr new_conn) {
+  const auto& remote_node = conn_pack.header.sender;
+
   Guard g(conn_mux_);
   connections_.insert(std::make_pair(remote_node, new_conn));
 
   if (!new_conn->IsActive()) {
-    new_conn->Send(FormPacket(Packet::Type::kRegistration, ByteVector{1,2,3}, remote_node));
-    routing_table_->UpdateTcpPort(remote_node, new_conn->GetEndpoint().port());
+    new_conn->Send(FormPacket(Packet::Type::kRegistration,
+                              Network::Instance().GetRegistrationData(),
+                              remote_node));
     LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
   } else {
     LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
@@ -314,6 +319,7 @@ void Host::OnConnected(const NodeId& remote_node, Connection::Ptr new_conn) {
   }
 
   CheckSendQueue(remote_node, new_conn);
+  Network::Instance().CheckNewConnection(std::move(conn_pack), new_conn);
 }
 
 void Host::OnConnectionDropped(const NodeId& remote_node, bool active,

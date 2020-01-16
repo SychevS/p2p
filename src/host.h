@@ -48,7 +48,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
 
   void OnPacketReceived(Packet&&);
 
-  void OnConnected(const NodeId& remote_node, Connection::Ptr);
+  void OnConnected(Packet&& conn_pack, Connection::Ptr);
   void OnConnectionDropped(const NodeId& remote_node, bool active, Connection::DropReason);
   void OnPendingConnectionError(const NodeId&, Connection::DropReason);
 

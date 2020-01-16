@@ -2,6 +2,7 @@
 #define NET_NETWORK_H
 
 #include "common.h"
+#include "connection.h"
 
 namespace net {
 
@@ -32,6 +33,9 @@ class Network {
   const NodeEntrance& GetHostContacts() const noexcept { return host_contacts_; }
   const Config& GetConfig() const noexcept { return config_; }
   bool BehindNAT() const noexcept { return behind_NAT_; }
+
+  void CheckNewConnection(Packet&&, Connection::Ptr) {}
+  ByteVector GetRegistrationData();
 
  private:
   Network() = default;

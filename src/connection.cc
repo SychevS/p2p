@@ -119,11 +119,13 @@ void Connection::StartRead() {
                           return;
                         } else {
                           registation_passed_ = true;
-                          host_.OnConnected(packet_.header.sender, self);
 
                           if (!active_) {
                             remote_node_ = packet_.header.sender;
                           }
+
+                          host_.OnConnected(std::move(packet_), self);
+                          packet_ = Packet();
                           StartRead();
                           return;
                         }

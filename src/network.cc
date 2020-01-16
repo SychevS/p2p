@@ -5,8 +5,68 @@
 #include "third-party/UPnP.h"
 #include "utils/localip.h"
 #include "utils/log.h"
+#include "utils/serialization.h"
 
 namespace net {
+
+namespace {
+
+struct RegData {
+  ByteVector data_;
+  bi::address internal_addr_;
+  uint16_t internal_port_;
+
+  enum class AddrType : uint8_t {
+    v4,
+    v6
+  };
+
+  RegData(bi::address internal_addr, uint16_t internal_port)
+      : internal_addr_(internal_addr), internal_port_(internal_port) {
+    Serializer s;
+
+    if (internal_addr.is_v4()) {
+      s.Put(AddrType::v4);
+      s.Put(internal_addr.to_v4().to_bytes());
+    } else if (internal_addr.is_v6()) {
+      s.Put(AddrType::v6);
+      s.Put(internal_addr.to_v6().to_bytes());
+    } else {
+      throw std::domain_error("invalid reg data");
+    }
+    s.Put(internal_port);
+
+    data_ = s.GetData();
+  }
+
+  RegData(ByteVector&& data) : data_(std::move(data)) {
+    if (!Unserialize(data_, internal_addr_, internal_port_)) {
+      throw std::domain_error("invalid reg data");
+    }
+  }
+
+  static bool Unserialize(const ByteVector& data, bi::address& addr, uint16_t& port) {
+    Unserializer u(data.data(), data.size());
+
+    AddrType addr_type;
+    if (!u.Get(addr_type)) return false;
+
+    if (addr_type == AddrType::v4) {
+      bi::address_v4::bytes_type addr_bytes;
+      if (!u.Get(addr_bytes)) return false;
+      addr = bi::make_address_v4(addr_bytes);
+    } else if (addr_type == AddrType::v6) {
+      bi::address_v6::bytes_type addr_bytes;
+      if (!u.Get(addr_bytes)) return false;
+      addr = bi::make_address_v6(addr_bytes);
+    } else {
+      return false;
+    }
+
+    return u.Get(port);
+  }
+};
+} // namespace
 
 bool Network::IsPrivateAddress(const bi::address& address_to_check) {
   if (address_to_check.is_v4()) {
@@ -107,6 +167,12 @@ Network& Network::Instance() {
   return network;
 }
 
+Network::~Network() {
+  if (UPnP_success_) {
+    DropRedirectUPnP(host_contacts_.tcp_port);
+  }
+}
+
 void Network::Init(const Config& config) {
   config_ = config;
   auto available_interfaces = GetLocalIp4();
@@ -172,10 +238,9 @@ void Network::Init(const Config& config) {
   host_contacts_.address = bi::make_address(kAllInterfaces);
 }
 
-Network::~Network() {
-  if (UPnP_success_) {
-    DropRedirectUPnP(host_contacts_.tcp_port);
-  }
+ByteVector Network::GetRegistrationData() {
+  static RegData reg_data(internal_addr_, host_contacts_.tcp_port);
+  return reg_data.data_;
 }
 
 } // namespace net
