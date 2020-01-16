@@ -40,8 +40,10 @@ Host::~Host() {
 }
 
 void Host::Run() {
-  auto& config = Network::Instance().GetConfig();
+  auto& net = Network::Instance();
+  net.SetRoutingTable(routing_table_);
 
+  auto& config = net.GetConfig();
   routing_table_->AddNodes(
           config.use_default_boot_nodes ?
           GetDefaultBootNodes() : config.custom_boot_nodes);

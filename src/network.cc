@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include "routing_table.h"
 #include "third-party/UPnP.h"
 #include "utils/localip.h"
 #include "utils/log.h"
@@ -238,9 +239,30 @@ void Network::Init(const Config& config) {
   host_contacts_.address = bi::make_address(kAllInterfaces);
 }
 
+void Network::SetRoutingTable(std::shared_ptr<RoutingTable> routing_table) {
+  routing_table_ = routing_table;
+}
+
 ByteVector Network::GetRegistrationData() {
   static RegData reg_data(internal_addr_, host_contacts_.tcp_port);
   return reg_data.data_;
+}
+
+void Network::CheckNewConnection(Packet&& conn_pack, Connection::Ptr conn) {
+  if (conn->IsActive()) return;
+
+  try {
+    RegData reg_data(std::move(conn_pack.data));
+    auto ep = conn->GetEndpoint();
+
+    // if internal and public addresses are equal then node is not behind NAT
+    // or we are on the same private network
+    if (reg_data.internal_addr_ == ep.address()) return;
+
+    if (routing_table_ && reg_data.internal_port_ != ep.port()) {
+      routing_table_->UpdateTcpPort(conn_pack.header.sender, ep.port());
+    }
+  } catch (...) {}
 }
 
 } // namespace net

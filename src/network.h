@@ -6,6 +6,8 @@
 
 namespace net {
 
+class RoutingTable;
+
 class Network {
  public:
   // Helper function to determine if an address falls within one of the reserved ranges
@@ -30,11 +32,13 @@ class Network {
   Network& operator=(const Network&) = delete;
   Network& operator=(Network&&) = delete;
 
+  void SetRoutingTable(std::shared_ptr<RoutingTable>);
+
   const NodeEntrance& GetHostContacts() const noexcept { return host_contacts_; }
   const Config& GetConfig() const noexcept { return config_; }
   bool BehindNAT() const noexcept { return behind_NAT_; }
 
-  void CheckNewConnection(Packet&&, Connection::Ptr) {}
+  void CheckNewConnection(Packet&& conn_pack, Connection::Ptr);
   ByteVector GetRegistrationData();
 
  private:
@@ -45,6 +49,7 @@ class Network {
   bool behind_NAT_ = false;
   bi::address internal_addr_;
   NodeEntrance host_contacts_;
+  std::shared_ptr<RoutingTable> routing_table_ = nullptr;
 };
 } // namespace net
 #endif // NET_NETWORK_H
