@@ -53,16 +53,15 @@ struct NodeEntrance {
 
 struct Config {
   NodeId id;
-  std::string listen_address;
-  uint16_t listen_port;
+  std::string listen_address = kAllInterfaces;
+  uint16_t listen_port = kDefaultPort;
 
-  bool traverse_nat;
-  bool use_default_boot_nodes;
+  bool traverse_nat = true;
+  bool use_default_boot_nodes = true;
   std::vector<NodeEntrance> custom_boot_nodes;
 
-  Config(const NodeId& id)
-      : id(id), listen_address(kLocalHost), listen_port(kDefaultPort),
-        traverse_nat(true), use_default_boot_nodes(true) {}
+  Config() {}
+  Config(const NodeId& id) : id(id) {}
 
   Config(const NodeId& id, const std::string& listen_address,
          uint16_t listen_port, bool traverse_nat, bool use_default_boot_nodes,

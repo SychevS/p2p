@@ -33,9 +33,7 @@ class RoutingTableEventHandler {
 
 class RoutingTable : public UdpSocketEventHandler {
  public:
-  RoutingTable(ba::io_context& io,
-               const NodeEntrance& host_data,
-               RoutingTableEventHandler& host);
+  RoutingTable(ba::io_context& io, RoutingTableEventHandler& host);
   ~RoutingTable() override;
 
   // starts lookup if not started yet
@@ -136,8 +134,8 @@ class RoutingTable : public UdpSocketEventHandler {
 
   void PingRoutine();
 
-  UdpSocket<kMaxDatagramSize>::Ptr socket_;
   const NodeEntrance host_data_;
+  UdpSocket<kMaxDatagramSize>::Ptr socket_;
   RoutingTableEventHandler& host_;
 
   Mutex ping_mux_;

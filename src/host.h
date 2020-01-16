@@ -78,9 +78,8 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   ba::io_context io_;
   bi::tcp::acceptor acceptor_;
   HostEventHandler& event_handler_;
-  NodeId id_;
+  NodeId my_id_;
   std::shared_ptr<RoutingTable> routing_table_;
-  std::shared_ptr<Network> network_;
 
   Mutex broadcast_id_mux_;
   constexpr static size_t kMaxBroadcastIds_ = 10000;

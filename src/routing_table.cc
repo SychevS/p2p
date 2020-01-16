@@ -1,21 +1,22 @@
+#include "routing_table.h"
+
 #include <algorithm>
 #include <thread>
 
-#include "routing_table.h"
+#include "network.h"
 #include "utils/log.h"
 
 namespace net {
 
 RoutingTable::RoutingTable(ba::io_context& io,
-                           const NodeEntrance& host_data,
                            RoutingTableEventHandler& host)
-    : socket_(UdpSocket<kMaxDatagramSize>::Create(io,
-          bi::udp::endpoint(host_data.address, host_data.udp_port),
+    : host_data_(Network::Instance().GetHostContacts()),
+      socket_(UdpSocket<kMaxDatagramSize>::Create(io,
+          bi::udp::endpoint(host_data_.address, host_data_.udp_port),
           static_cast<UdpSocketEventHandler&>(*this))),
-      host_data_(host_data),
       host_(host),
       io_(io),
-      kBucketsNum(static_cast<uint16_t>(host_data.id.size() * 8)), // num of bits in NodeId
+      kBucketsNum(static_cast<uint16_t>(host_data_.id.size() * 8)), // num of bits in NodeId
       explorer_(*this) {
   socket_->Open();
   k_buckets_ = new KBucket[kBucketsNum];

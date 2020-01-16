@@ -9,12 +9,12 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
       acceptor_(io_),
       event_handler_(event_handler),
       routing_table_(nullptr),
-      network_(nullptr),
       packets_to_send_(0) {
   InitLogger();
 
+  auto& net = Network::Instance();
   try {
-    network_ = std::make_shared<Network>(config);
+    net.Init(config);
   } catch (const std::exception& e) {
     LOG(FATAL) << e.what();
     throw;
@@ -23,10 +23,9 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
     throw;
   }
 
-  id_ = network_->GetHostContacts().id;
+  my_id_ = net.GetHostContacts().id;
 
-  routing_table_ = std::make_shared<RoutingTable>(io_, network_->GetHostContacts(),
-      static_cast<RoutingTableEventHandler&>(*this));
+  routing_table_ = std::make_shared<RoutingTable>(io_, static_cast<RoutingTableEventHandler&>(*this));
 
   ban_man_ = std::make_unique<BanMan>(kBanFileName, static_cast<BanManOwner&>(*this),
       routing_table_);
@@ -41,7 +40,7 @@ Host::~Host() {
 }
 
 void Host::Run() {
-  auto& config = network_->GetConfig();
+  auto& config = Network::Instance().GetConfig();
 
   routing_table_->AddNodes(
           config.use_default_boot_nodes ?
@@ -105,11 +104,11 @@ bool Host::IsEndpointBanned(const bi::address& addr, uint16_t port) {
 }
 
 void Host::OnPacketReceived(Packet&& packet) {
-  if (packet.IsDirect() && packet.header.receiver == id_) {
+  if (packet.IsDirect() && packet.header.receiver == my_id_) {
     event_handler_.OnMessageReceived(packet.header.sender, std::move(packet.data));
   } else if (packet.IsBroadcast() && !IsDuplicate(packet)) {
     auto nodes = routing_table_->GetBroadcastList(packet.header.receiver);
-    packet.header.receiver = id_;
+    packet.header.receiver = my_id_;
     for (const auto& n : nodes) {
       SendDirect(n, packet);
     }
@@ -141,7 +140,7 @@ void Host::InsertNewBroadcastId(const Packet::Id& id) {
 }
 
 void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
-  if (receiver == id_) {
+  if (receiver == my_id_) {
     return;
   }
 
@@ -172,9 +171,9 @@ void Host::SendDirect(const NodeEntrance& receiver, const Packet& packet) {
 }
 
 void Host::SendBroadcast(ByteVector&& data) {
-  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), id_);
+  auto pack = FormPacket(Packet::Type::kBroadcast, std::move(data), my_id_);
   InsertNewBroadcast(pack);
-  auto nodes = routing_table_->GetBroadcastList(id_);
+  auto nodes = routing_table_->GetBroadcastList(my_id_);
   for (const auto& n : nodes) {
     SendDirect(n, pack);
   }
@@ -187,7 +186,7 @@ Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId& rece
   auto& h = result.header;
   h.type = type;
   h.data_size = result.data.size();
-  h.sender = id_;
+  h.sender = my_id_;
   h.receiver = receiver;
 
   return result;
@@ -243,7 +242,7 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
 }
 
 void Host::TcpListen() {
-  auto& contacts = network_->GetHostContacts();
+  auto& contacts = Network::Instance().GetHostContacts();
 
   try {
     bi::tcp::endpoint ep(contacts.address, contacts.tcp_port);

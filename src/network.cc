@@ -102,7 +102,13 @@ void Network::DropRedirectUPnP(uint16_t port) {
   }
 }
 
-Network::Network(const Config& config) : config_(config) {
+Network& Network::Instance() {
+  static Network network;
+  return network;
+}
+
+void Network::Init(const Config& config) {
+  config_ = config;
   auto available_interfaces = GetLocalIp4();
 
   if (available_interfaces.empty()) {
@@ -126,18 +132,19 @@ Network::Network(const Config& config) : config_(config) {
     LOG(INFO) << "IP address in config is unspecified.";
     for (auto& addr : available_interfaces) {
       if (!IsPrivateAddress(addr)) {
-        host_contacts_.address = addr;
+        internal_addr_ = host_contacts_.address = addr;
         LOG(INFO) << "Has public address in available interfaces " << addr;
         return;
       }
     }
 
     LOG(INFO) << "No public addresses available.";
-    host_contacts_.address = *available_interfaces.begin();
+    internal_addr_ = host_contacts_.address = *available_interfaces.begin();
   }
 
   if (!IsPrivateAddress(host_contacts_.address) && available_interfaces.find(host_contacts_.address) != available_interfaces.end()) {
     LOG(INFO) << "IP address from config is public: " << host_contacts_.address << ". UPnP disabled.";
+    internal_addr_ = host_contacts_.address;
     return;
   }
 
@@ -151,21 +158,22 @@ Network::Network(const Config& config) : config_(config) {
     if (public_ep.address().is_unspecified()) {
       LOG(INFO) << "UPnP returned upspecified address.";
     } else {
-      UPnP_success_.store(true);
+      UPnP_success_ = true;
       host_contacts_.udp_port = public_ep.port();
       host_contacts_.tcp_port = public_ep.port();
+      internal_addr_ = public_ep.address();
     }
   } else {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
               << host_contacts_.address;
   }
 
+  behind_NAT_ = IsPrivateAddress(internal_addr_);
   host_contacts_.address = bi::make_address(kAllInterfaces);
-
 }
 
 Network::~Network() {
-  if (UPnP_success_.load()) {
+  if (UPnP_success_) {
     DropRedirectUPnP(host_contacts_.tcp_port);
   }
 }

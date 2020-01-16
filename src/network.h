@@ -20,7 +20,9 @@ class Network {
                                        uint16_t listen_port, bi::address& o_upnp_interface_addr);
   static void DropRedirectUPnP(uint16_t port);
 
-  Network(const Config&);
+  static Network& Instance();
+  void Init(const Config&);
+
   ~Network();
   Network(const Network&) = delete;
   Network(Network&&) = delete;
@@ -29,10 +31,15 @@ class Network {
 
   const NodeEntrance& GetHostContacts() const noexcept { return host_contacts_; }
   const Config& GetConfig() const noexcept { return config_; }
+  bool BehindNAT() const noexcept { return behind_NAT_; }
 
  private:
-  const Config config_;
-  std::atomic<bool> UPnP_success_{false};
+  Network() = default;
+
+  Config config_;
+  bool UPnP_success_ = false;
+  bool behind_NAT_ = false;
+  bi::address internal_addr_;
   NodeEntrance host_contacts_;
 };
 } // namespace net
