@@ -175,7 +175,6 @@ void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
 
   if (good_resp) {
     UpdateKBuckets(d.node_from);
-    explorer_.CheckPingResponce(d.node_from);
   }
 }
 

@@ -73,9 +73,10 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
 
   {
    Guard g(find_node_mux_);
-   if (find_node_sent_.find(find_node_resp.target) == find_node_sent_.end()) return;
+   auto find_node_request = find_node_sent_.find(find_node_resp.target);
+   if (find_node_request == find_node_sent_.end()) return;
 
-   auto& already_queried = find_node_sent_[find_node_resp.target];
+   auto& already_queried = find_node_request->second;
    if (std::find(already_queried.begin(), already_queried.end(),
                  find_node_resp.node_from.id) == already_queried.end()) {
      LOG(DEBUG) << "Unexpected find node responce.";
@@ -105,6 +106,8 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
    }
 
    founded_node = *it;
+   find_node_sent_.erase(find_node_request);
+   routing_table_.OnNodeFound(founded_node);
   }
 
   Guard g(routing_table_.k_bucket_mux_);
@@ -114,14 +117,5 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
 
   auto& bucket = routing_table_.k_buckets_[index];
   routing_table_.SendPing(founded_node, bucket);
-}
-
-void RoutingTable::NetExplorer::CheckPingResponce(const NodeEntrance& node) {
-  Guard g(find_node_mux_);
-  auto it = find_node_sent_.find(node.id);
-  if (it != find_node_sent_.end()) {
-    find_node_sent_.erase(it);
-    routing_table_.OnNodeFound(node);
-  }
 }
 } // namespace net

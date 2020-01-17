@@ -103,7 +103,6 @@ class RoutingTable : public UdpSocketEventHandler {
     void Start();
     void Find(const NodeId&, const std::vector<NodeEntrance>& find_list);
     void CheckFindNodeResponce(const KademliaDatagram&);
-    void CheckPingResponce(const NodeEntrance&);
 
    private:
     void DiscoveryRoutine();
