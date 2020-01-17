@@ -95,17 +95,6 @@ class RoutingTable : public UdpSocketEventHandler {
   // Or total_nodes_ nodes if total_nodes_ < k.
   std::vector<NodeEntrance> NearestNodes(const NodeId&);
 
-  struct Timer {
-    ba::deadline_timer clock;
-    bool expired;
-
-    Timer(ba::io_context& io, size_t seconds)
-        : clock(io, boost::posix_time::seconds(seconds)),
-          expired(false) {}
-  };
-
-  using TimerPtr = std::shared_ptr<Timer>;
-
   class NetExplorer {
    public:
     NetExplorer(RoutingTable&);
@@ -121,9 +110,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
     RoutingTable& routing_table_;
     std::thread discovery_thread_;
-
-    Mutex timers_mux_;
-    std::list<TimerPtr> timers_;
 
     Mutex find_node_mux_;
     std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
@@ -147,9 +133,6 @@ class RoutingTable : public UdpSocketEventHandler {
   std::atomic<size_t> total_nodes_{0};
 
   const uint16_t kBucketsNum;
-
-  Mutex timers_mux_;
-  std::list<TimerPtr> ping_timers_;
 
   std::thread ping_thread_;
 

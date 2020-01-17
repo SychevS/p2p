@@ -23,14 +23,6 @@ void RoutingTable::NetExplorer::DiscoveryRoutine() {
   while (true) {
     std::this_thread::sleep_for(kDiscoveryInterval);
 
-    {
-      Guard g(timers_mux_);
-      for (auto it = timers_.begin(); it != timers_.end();) {
-        if ((*it)->expired) it = timers_.erase(it);
-        else ++it;
-      }
-    }
-
     NodeId random_id;
     uint32_t* ptr = random_id.GetPtr();
     std::generate(ptr, ptr + random_id.size() / sizeof(uint32_t), [&gen, &dist]() -> uint32_t { return dist(gen); });
@@ -55,16 +47,10 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
    }
   }
 
-  Guard lock(timers_mux_);
-  timers_.push_back(std::make_shared<Timer>(routing_table_.io_, kDiscoveryExpirationSeconds.count()));
-  auto timer = timers_.back();
+  auto timer = std::make_shared<DeadlineTimer>(
+                routing_table_.io_, boost::posix_time::seconds(kDiscoveryExpirationSeconds.count()));
 
   auto callback = [this, timer, id](const boost::system::error_code&) {
-                    {
-                     Guard g(timers_mux_);
-                     timer->expired = true;
-                    }
-
                     bool node_found = true;
                     {
                      Guard g(find_node_mux_);
@@ -78,7 +64,7 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
                     }
                   };
 
-  timer->clock.async_wait(std::move(callback));
+  timer->async_wait(std::move(callback));
 }
 
 void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d) {

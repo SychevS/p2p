@@ -34,6 +34,7 @@ namespace ba = boost::asio;
 namespace bi = ba::ip;
 
 using NodeId = arith_uint256;
+using DeadlineTimer = ba::deadline_timer;
 
 struct NodeEntrance {
   NodeId id;
