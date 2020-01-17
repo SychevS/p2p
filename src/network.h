@@ -1,6 +1,8 @@
 #ifndef NET_NETWORK_H
 #define NET_NETWORK_H
 
+#include <unordered_set>
+
 #include "common.h"
 #include "connection.h"
 
@@ -38,11 +40,15 @@ class Network {
   const Config& GetConfig() const noexcept { return config_; }
   bool BehindNAT() const noexcept { return behind_NAT_; }
 
-  void CheckNewConnection(Packet&& conn_pack, Connection::Ptr);
+  void OnConnected(Packet&& conn_pack, Connection::Ptr);
+  void OnConnectionDropped(const NodeId&, bool active);
   ByteVector GetRegistrationData();
 
  private:
   Network() = default;
+
+  void AddIntermediaryClient(const NodeId&);
+  void RemoveIntermediaryClient(const NodeId&);
 
   Config config_;
   bool UPnP_success_ = false;
@@ -50,6 +56,11 @@ class Network {
   bi::address internal_addr_;
   NodeEntrance host_contacts_;
   std::shared_ptr<RoutingTable> routing_table_ = nullptr;
+
+  // if host is not behind NAT, it can be
+  // the intermediary for some connected NAT hosts
+  std::unordered_set<NodeId> intermediary_clients_;
+  Mutex clients_mux_;
 };
 } // namespace net
 #endif // NET_NETWORK_H

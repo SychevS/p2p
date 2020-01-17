@@ -248,7 +248,7 @@ ByteVector Network::GetRegistrationData() {
   return reg_data.data_;
 }
 
-void Network::CheckNewConnection(Packet&& conn_pack, Connection::Ptr conn) {
+void Network::OnConnected(Packet&& conn_pack, Connection::Ptr conn) {
   if (conn->IsActive()) return;
 
   try {
@@ -262,7 +262,25 @@ void Network::CheckNewConnection(Packet&& conn_pack, Connection::Ptr conn) {
     if (routing_table_ && reg_data.internal_port_ != ep.port()) {
       routing_table_->UpdateTcpPort(conn_pack.header.sender, ep.port());
     }
+
+    if (behind_NAT_) return;
+    AddIntermediaryClient(conn_pack.header.sender);
   } catch (...) {}
+}
+
+void Network::OnConnectionDropped(const NodeId& id, bool active) {
+  if (active) return;
+  RemoveIntermediaryClient(id);
+}
+
+void Network::AddIntermediaryClient(const NodeId& client) {
+  Guard g(clients_mux_);
+  intermediary_clients_.insert(client);
+}
+
+void Network::RemoveIntermediaryClient(const NodeId& client) {
+  Guard g(clients_mux_);
+  intermediary_clients_.erase(client);
 }
 
 } // namespace net

@@ -321,7 +321,7 @@ void Host::OnConnected(Packet&& conn_pack, Connection::Ptr new_conn) {
   }
 
   CheckSendQueue(remote_node, new_conn);
-  Network::Instance().CheckNewConnection(std::move(conn_pack), new_conn);
+  Network::Instance().OnConnected(std::move(conn_pack), new_conn);
 }
 
 void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
@@ -342,6 +342,7 @@ void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
   if (!connections_.count(remote_node)) {
     ClearSendQueue(remote_node);
   }
+  Network::Instance().OnConnectionDropped(remote_node, active);
 }
 
 void Host::ClearSendQueue(const NodeId& id) {
@@ -354,7 +355,7 @@ void Host::ClearSendQueue(const NodeId& id) {
 }
 
 void Host::CheckSendQueue(const NodeId& id, Connection::Ptr conn) {
-  Guard g1(send_mux_);
+  Guard g(send_mux_);
   auto it = send_queue_.find(id);
   if (it != send_queue_.end()) {
     packets_to_send_ -= it->second.size();
