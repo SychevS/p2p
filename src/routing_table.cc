@@ -17,46 +17,18 @@ RoutingTable::RoutingTable(ba::io_context& io,
       host_(host),
       io_(io),
       kBucketsNum(static_cast<uint16_t>(host_data_.id.size() * 8)), // num of bits in NodeId
+      k_buckets_(new KBucket[kBucketsNum]),
+      pinger_(*this),
       explorer_(*this) {
   socket_->Open();
-  k_buckets_ = new KBucket[kBucketsNum];
-  ping_thread_ = std::thread(&RoutingTable::PingRoutine, this);
+
+  pinger_.Start();
   explorer_.Start();
 }
 
 RoutingTable::~RoutingTable() {
   socket_->Close();
   delete []k_buckets_;
-
-  if (ping_thread_.joinable()) {
-    ping_thread_.join();
-  }
-}
-
-void RoutingTable::PingRoutine() {
-  uint16_t current_bucket = 0;
-
-  while (true) {
-    std::this_thread::sleep_for(kPingExpirationSeconds);
-
-    Guard g(k_bucket_mux_);
-    for (; current_bucket < kBucketsNum; ++current_bucket) {
-      if (k_buckets_[current_bucket].Size()) break;
-    }
-
-    if (current_bucket == kBucketsNum) {
-      current_bucket = 0;
-      continue;
-    }
-
-    auto& bucket = k_buckets_[current_bucket];
-    auto& nodes = bucket.GetNodes();
-    for (auto& n : nodes) {
-      SendPing(n, bucket);
-    }
-
-    ++current_bucket;
-  }
 }
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
@@ -66,7 +38,7 @@ void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {
     Guard g(k_bucket_mux_);
     for (auto& n : nodes) {
       if (n.id == host_data_.id) continue;
-      SendPing(n, k_buckets_[KBucketIndex(n.id)]);
+      pinger_.SendPing(n, k_buckets_[KBucketIndex(n.id)]);
     }
   }
 }
@@ -131,7 +103,7 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
       HandlePing(*packet);
       break;
     case PingRespDatagram::type :
-      HandlePingResp(*packet);
+      pinger_.CheckPingResponce(*packet);
       break;
     case FindNodeDatagram::type :
       HandleFindNode(*packet);
@@ -158,24 +130,6 @@ void RoutingTable::HandlePing(const KademliaDatagram& d) {
   PingRespDatagram answer(host_data_);
   socket_->Send(answer.ToUdp(d.node_from));
   UpdateKBuckets(d.node_from);
-}
-
-void RoutingTable::HandlePingResp(const KademliaDatagram& d) {
-  bool good_resp = false;
-  {
-   Guard g(ping_mux_);
-   auto it = ping_sent_.find(d.node_from.id);
-   if (it != ping_sent_.end()) {
-     ping_sent_.erase(it);
-     good_resp = true;
-   } else {
-     LOG(DEBUG) << "Unexpected ping response.";
-   }
-  }
-
-  if (good_resp) {
-    UpdateKBuckets(d.node_from);
-  }
 }
 
 void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
@@ -205,61 +159,8 @@ void RoutingTable::UpdateKBuckets(const NodeEntrance& node) {
     ++total_nodes_;
     NotifyHost(node, RoutingTableEventType::kNodeAdded);
   } else {
-    SendPing(bucket.LeastRecentlySeen(), bucket, std::make_shared<NodeEntrance>(node));
+    pinger_.SendPing(bucket.LeastRecentlySeen(), bucket, std::make_shared<NodeEntrance>(node));
   }
-}
-
-void RoutingTable::SendPing(const NodeEntrance& target, KBucket& bucket, std::shared_ptr<NodeEntrance> replacer) {
-  PingDatagram ping(host_data_);
-  {
-   Guard g(ping_mux_);
-   auto it = ping_sent_.find(target.id);
-   if (it != ping_sent_.end()) {
-     it->second++;
-   } else {
-     ping_sent_.insert(std::make_pair(target.id, replacer ? kMaxPingsBeforeRemove : 0));
-   }
-  }
-
-  socket_->Send(ping.ToUdp(target));
-
-  auto timer = std::make_shared<DeadlineTimer>(
-                io_, boost::posix_time::seconds(kPingExpirationSeconds.count()));
-
-  auto callback = [this, target, replacer, &bucket, timer](const boost::system::error_code&) {
-                    bool resendPing = true;
-                    {
-                      std::scoped_lock g(ping_mux_, k_bucket_mux_);
-
-                      auto it = ping_sent_.find(target.id);
-                      if (it == ping_sent_.end()) {
-                        return;
-                      }
-
-                      if (it->second >= kMaxPingsBeforeRemove) {
-                        resendPing = false;
-                        ping_sent_.erase(it);
-
-                        if (bucket.Exists(target.id)) {
-                          bucket.Evict(target.id);
-                          --total_nodes_;
-                          NotifyHost(target, RoutingTableEventType::kNodeRemoved);
-                        }
-
-                        if (replacer) {
-                          bucket.AddNode(*replacer);
-                          ++total_nodes_;
-                          NotifyHost(*replacer, RoutingTableEventType::kNodeAdded);
-                        }
-                      }
-                    }
-
-                    if (resendPing) {
-                      SendPing(target, bucket, replacer);
-                    }
-                  };
-
-  timer->async_wait(std::move(callback));
 }
 
 std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {

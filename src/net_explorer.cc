@@ -116,6 +116,6 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
   if (index == kIvalidIndex) return;
 
   auto& bucket = routing_table_.k_buckets_[index];
-  routing_table_.SendPing(founded_node, bucket);
+  routing_table_.pinger_.SendPing(founded_node, bucket);
 }
 } // namespace net

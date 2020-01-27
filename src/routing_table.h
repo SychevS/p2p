@@ -78,7 +78,6 @@ class RoutingTable : public UdpSocketEventHandler {
   bool CheckEndpoint(const KademliaDatagram&);
 
   void HandlePing(const KademliaDatagram&);
-  void HandlePingResp(const KademliaDatagram&);
   void HandleFindNode(const KademliaDatagram&);
 
   uint16_t KBucketIndex(const NodeId& id) const noexcept;
@@ -114,27 +113,38 @@ class RoutingTable : public UdpSocketEventHandler {
     std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
   };
 
-  void SendPing(const NodeEntrance& target, KBucket& bucket,
-                std::shared_ptr<NodeEntrance> replacer = nullptr);
+  class Pinger {
+   public:
+    Pinger(RoutingTable&);
+    ~Pinger();
 
-  void PingRoutine();
+    void Start();
+    void SendPing(const NodeEntrance& target, KBucket& bucket,
+                  std::shared_ptr<NodeEntrance> replacer = nullptr);
+    void CheckPingResponce(const KademliaDatagram&);
+
+   private:
+    void PingRoutine();
+
+    RoutingTable& routing_table_;
+    std::thread ping_thread_;
+
+    Mutex ping_mux_;
+    std::unordered_map<NodeId, uint8_t> ping_sent_;
+  };
 
   const NodeEntrance host_data_;
   UdpSocket<kMaxDatagramSize>::Ptr socket_;
   RoutingTableEventHandler& host_;
 
-  Mutex ping_mux_;
-  std::unordered_map<NodeId, uint8_t> ping_sent_;
-
-  Mutex k_bucket_mux_;
-  KBucket* k_buckets_;
   ba::io_context& io_;
-  std::atomic<size_t> total_nodes_{0};
 
   const uint16_t kBucketsNum;
+  Mutex k_bucket_mux_;
+  KBucket* k_buckets_;
+  std::atomic<size_t> total_nodes_{0};
 
-  std::thread ping_thread_;
-
+  Pinger pinger_;
   NetExplorer explorer_;
 };
 
