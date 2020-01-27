@@ -73,6 +73,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
 
   void ClearSendQueue(const NodeId&);
   void CheckSendQueue(const NodeId&, Connection::Ptr);
+  void BroadcastSendQueue(const NodeId&);
   void DropConnections(const NodeId&);
 
   ba::io_context io_;

@@ -366,10 +366,37 @@ void Host::CheckSendQueue(const NodeId& id, Connection::Ptr conn) {
   }
 }
 
+void Host::BroadcastSendQueue(const NodeId& id) {
+  std::vector<Packet> packets;
+
+  {
+   Guard g(send_mux_);
+
+   auto it = send_queue_.find(id);
+   if (it == send_queue_.end()) return;
+
+   packets_to_send_ -= it->second.size();
+   packets = std::move(it->second);
+   send_queue_.erase(it);
+  }
+
+  for (auto& pack : packets) {
+    if (!pack.IsDirect()) continue;
+
+    SendBroadcast(std::move(pack.data));
+  }
+}
+
 void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason drop_reason) {
   LOG(INFO) << "Pending connection with " << IdToBase58(id)
             << " was closed, reason " << Connection::DropReasonToString(drop_reason);
-  ClearSendQueue(id);
+
+  if (drop_reason != Connection::kConnectionError) {
+    ClearSendQueue(id);
+  } else {
+    BroadcastSendQueue(id);
+  }
+
   RemoveFromPendingConn(id);
 }
 
