@@ -188,35 +188,38 @@ void Network::Init(const Config& config) {
   }
   LOG(INFO) << net_info;
 
+  bi::address config_addr = config_.listen_address.empty() ?
+                            bi::address() :
+                            bi::make_address(config_.listen_address);
+
   host_contacts_.id = config_.id;
-  host_contacts_.address = config_.listen_address.empty() ?
-                         bi::address() :
-                         bi::make_address(config_.listen_address);
+  host_contacts_.address = bi::make_address(kAllInterfaces);
   host_contacts_.udp_port = config_.listen_port;
   host_contacts_.tcp_port = config_.listen_port;
 
-  if (host_contacts_.address.is_unspecified()) {
+  if (config_addr.is_unspecified()) {
     LOG(INFO) << "IP address in config is unspecified.";
     for (auto& addr : available_interfaces) {
       if (!IsPrivateAddress(addr)) {
-        internal_addr_ = host_contacts_.address = addr;
+        internal_addr_ = addr;
         LOG(INFO) << "Has public address in available interfaces " << addr;
         return;
       }
     }
 
     LOG(INFO) << "No public addresses available.";
-    internal_addr_ = host_contacts_.address = *available_interfaces.begin();
+    config_addr = *available_interfaces.begin();
   }
 
-  if (!IsPrivateAddress(host_contacts_.address) && available_interfaces.find(host_contacts_.address) != available_interfaces.end()) {
-    LOG(INFO) << "IP address from config is public: " << host_contacts_.address << ". UPnP disabled.";
-    internal_addr_ = host_contacts_.address;
+  internal_addr_ = config_addr;
+
+  if (!IsPrivateAddress(config_addr) && available_interfaces.find(config_addr) != available_interfaces.end()) {
+    LOG(INFO) << "IP address from config is public: " << config_addr << ". UPnP disabled.";
     return;
   }
 
   if (config_.traverse_nat) {
-    LOG(INFO) << "IP address from config is private: " << host_contacts_.address
+    LOG(INFO) << "IP address from config is private: " << config_addr
               << ". UPnP enabled, start punching through NAT.";
 
     bi::address private_addr;
@@ -232,11 +235,10 @@ void Network::Init(const Config& config) {
     }
   } else {
     LOG(INFO) << "Nat traversal disabled and IP address in config is private: "
-              << host_contacts_.address;
+              << config_addr;
   }
 
   behind_NAT_ = IsPrivateAddress(internal_addr_);
-  host_contacts_.address = bi::make_address(kAllInterfaces);
 }
 
 void Network::SetRoutingTable(std::shared_ptr<RoutingTable> routing_table) {
