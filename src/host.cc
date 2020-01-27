@@ -201,14 +201,15 @@ void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
     return;
   }
 
-  Guard g(send_mux_);
-  if (packets_to_send_ >= kMaxSendQueueSize_) {
-     LOG(INFO) << "Drop packet to " << IdToBase58(receiver.id) << ", send queue limit.";
-     return;
+  {
+    Guard g(send_mux_);
+    if (packets_to_send_ >= kMaxSendQueueSize_) {
+       LOG(INFO) << "Drop packet to " << IdToBase58(receiver.id) << ", send queue limit.";
+       return;
+    }
+    send_queue_[receiver.id].push_back(std::move(pack));
+    ++packets_to_send_;
   }
-  send_queue_[receiver.id].push_back(std::move(pack));
-  ++packets_to_send_;
-
   Connect(receiver);
 }
 
