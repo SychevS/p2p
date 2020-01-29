@@ -36,7 +36,7 @@ void RoutingTable::NetExplorer::Find(const NodeId& id, const std::vector<NodeEnt
    Guard g(find_node_mux_);
    auto& nodes_to_query = find_node_sent_[id];
    if (nodes_to_query.size() != 0) {
-     LOG(DEBUG) << "Find node procedure has already been started for this node.";
+     // Find node procedure has already been started for this node.
      return;
    }
 

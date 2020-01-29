@@ -100,7 +100,6 @@ void RoutingTable::Pinger::CheckPingResponce(const KademliaDatagram& d) {
    if (it != ping_sent_.end()) {
      ping_sent_.erase(it);
    } else {
-     LOG(DEBUG) << "Unexpected ping response.";
      return;
    }
   }
