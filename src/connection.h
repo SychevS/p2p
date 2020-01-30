@@ -70,6 +70,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   std::atomic<bool> registation_passed_ = false;
   std::atomic<bool> dropped_ = false;
+  std::atomic<bool> timer_started_ = false;
   const bool active_;
 
   NodeId remote_node_;

@@ -17,8 +17,6 @@ Connection::Connection(Host& h, ba::io_context& io, bi::tcp::socket&& s)
       deadline_(io) {}
 
 void Connection::ResetTimer() {
-  static bool first = true;
-
   Ptr self(shared_from_this());
   auto callback = [this, self](const boost::system::error_code& e) {
                     if (e == ba::error::operation_aborted) {
@@ -30,14 +28,14 @@ void Connection::ResetTimer() {
 
   size_t waiters = deadline_.expires_from_now(boost::posix_time::seconds(kTimeoutSeconds));
 
-  if (first) {
-    first = false;
-    deadline_.async_wait(callback);
+  if (!timer_started_) {
+    timer_started_ = true;
+    deadline_.async_wait(std::move(callback));
     return;
   }
 
   if (waiters > 0) {
-    deadline_.async_wait(callback);
+    deadline_.async_wait(std::move(callback));
   }
 }
 
