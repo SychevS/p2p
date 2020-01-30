@@ -1,5 +1,7 @@
 #include "routing_table.h"
 
+#include "network.h"
+
 namespace net {
 
 RoutingTable::Pinger::Pinger(RoutingTable& rt) : routing_table_(rt) {}
@@ -19,6 +21,14 @@ void RoutingTable::Pinger::PingRoutine() {
 
   while (true) {
     std::this_thread::sleep_for(kPingExpirationSeconds);
+
+    if (routing_table_.total_nodes_ == 0) {
+      auto& config = Network::Instance().GetConfig();
+      const auto& boot_nodes = config.use_default_boot_nodes ?
+                               GetDefaultBootNodes() : config.custom_boot_nodes;
+
+      routing_table_.AddNodes(boot_nodes);
+    }
 
     Guard g(routing_table_.k_bucket_mux_);
     for (; current_bucket < routing_table_.kBucketsNum; ++current_bucket) {

@@ -196,6 +196,7 @@ std::vector<NodeEntrance> RoutingTable::NearestNodes(const NodeId& target) {
 }
 
 void RoutingTable::OnNodeFound(const NodeEntrance& node) {
+  if (node.id == host_data_.id) return;
   NotifyHost(node, RoutingTableEventType::kNodeFound);
 }
 
