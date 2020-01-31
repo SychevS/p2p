@@ -152,6 +152,9 @@ void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
   if (routing_table_->HasNode(receiver, receiver_contacts)) {
     SendPacket(receiver_contacts, std::move(pack));
   } else {
+    ByteVector copied_data = data;
+    SendBroadcast(std::move(copied_data));
+
     {
      Guard g(send_mux_);
      if (packets_to_send_ == kMaxSendQueueSize_) {
@@ -199,6 +202,11 @@ void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
   if (conn) {
     conn->Send(std::move(pack));
     return;
+  }
+
+  if (pack.IsDirect()) {
+    auto copied_data = pack.data;
+    SendBroadcast(std::move(copied_data));
   }
 
   {
@@ -392,12 +400,7 @@ void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason dro
   LOG(INFO) << "Pending connection with " << IdToBase58(id)
             << " was closed, reason " << Connection::DropReasonToString(drop_reason);
 
-  if (drop_reason != Connection::kConnectionError) {
-    ClearSendQueue(id);
-  } else {
-    BroadcastSendQueue(id);
-  }
-
+  ClearSendQueue(id);
   RemoveFromPendingConn(id);
 }
 
