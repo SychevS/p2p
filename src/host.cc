@@ -152,20 +152,7 @@ void Host::SendDirect(const NodeId& receiver, ByteVector&& data) {
   if (routing_table_->HasNode(receiver, receiver_contacts)) {
     SendPacket(receiver_contacts, std::move(pack));
   } else {
-    ByteVector copied_data = data;
-    SendBroadcast(std::move(copied_data));
-
-    {
-     Guard g(send_mux_);
-     if (packets_to_send_ == kMaxSendQueueSize_) {
-       auto it = send_queue_.begin();
-       packets_to_send_ -= it->second.size();
-       send_queue_.erase(it);
-     }
-     send_queue_[receiver].emplace_back(std::move(pack));
-     ++packets_to_send_;
-    }
-
+    AddToSendQueue(receiver, std::move(pack));
     routing_table_->StartFindNode(receiver);
   }
 }
@@ -204,20 +191,7 @@ void Host::SendPacket(const NodeEntrance& receiver, Packet&& pack) {
     return;
   }
 
-  if (pack.IsDirect()) {
-    auto copied_data = pack.data;
-    SendBroadcast(std::move(copied_data));
-  }
-
-  {
-    Guard g(send_mux_);
-    if (packets_to_send_ >= kMaxSendQueueSize_) {
-       LOG(INFO) << "Drop packet to " << IdToBase58(receiver.id) << ", send queue limit.";
-       return;
-    }
-    send_queue_[receiver.id].push_back(std::move(pack));
-    ++packets_to_send_;
-  }
+  AddToSendQueue(receiver.id, std::move(pack));
   Connect(receiver);
 }
 
@@ -354,6 +328,19 @@ void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
   Network::Instance().OnConnectionDropped(remote_node, active);
 }
 
+void Host::AddToSendQueue(const NodeId& id, Packet&& pack) {
+   Guard g(send_mux_);
+
+   if (packets_to_send_ == kMaxSendQueueSize_) {
+     auto it = send_queue_.begin();
+     packets_to_send_ -= it->second.size();
+     send_queue_.erase(it);
+   }
+
+   send_queue_[id].emplace_back(std::move(pack));
+   ++packets_to_send_;
+}
+
 void Host::ClearSendQueue(const NodeId& id) {
   Guard g(send_mux_);
   auto it = send_queue_.find(id);
@@ -372,27 +359,6 @@ void Host::CheckSendQueue(const NodeId& id, Connection::Ptr conn) {
       conn->Send(std::move(p));
     }
     send_queue_.erase(it);
-  }
-}
-
-void Host::BroadcastSendQueue(const NodeId& id) {
-  std::vector<Packet> packets;
-
-  {
-   Guard g(send_mux_);
-
-   auto it = send_queue_.find(id);
-   if (it == send_queue_.end()) return;
-
-   packets_to_send_ -= it->second.size();
-   packets = std::move(it->second);
-   send_queue_.erase(it);
-  }
-
-  for (auto& pack : packets) {
-    if (!pack.IsDirect()) continue;
-
-    SendBroadcast(std::move(pack.data));
   }
 }
 
