@@ -171,6 +171,23 @@ void Host::SendBroadcast(ByteVector&& data) {
   }
 }
 
+void Host::SendBroadcastIfNoConnection(const NodeId& receiver, ByteVector&& data) {
+  auto conn = IsConnected(receiver);
+  if (conn) {
+    conn->Send(FormPacket(Packet::Type::kDirect, std::move(data), receiver));
+    return;
+  }
+
+  SendBroadcast(std::move(data));
+
+  NodeEntrance receiver_contacts;
+  if (!routing_table_->HasNode(receiver, receiver_contacts)) {
+    routing_table_->StartFindNode(receiver);
+  } else {
+    Connect(receiver_contacts);
+  }
+}
+
 Packet Host::FormPacket(Packet::Type type, ByteVector&& data, const NodeId& receiver) {
   Packet result;
   result.data = std::move(data);

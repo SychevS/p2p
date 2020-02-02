@@ -28,12 +28,13 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   Host(const Config&, HostEventHandler&);
   ~Host();
 
-  void AddKnownNodes(const std::vector<NodeEntrance>&);
+  void Run();
 
   void SendDirect(const NodeId& to, ByteVector&& msg);
   void SendBroadcast(ByteVector&& msg);
+  void SendBroadcastIfNoConnection(const NodeId& to, ByteVector&& msg);
 
-  void Run();
+  void AddKnownNodes(const std::vector<NodeEntrance>&);
 
   void Ban(const NodeId&);
   void Unban(const NodeId&);
