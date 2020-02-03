@@ -172,6 +172,10 @@ void Host::SendBroadcast(ByteVector&& data) {
 }
 
 void Host::SendBroadcastIfNoConnection(const NodeId& receiver, ByteVector&& data) {
+  if (receiver == my_id_) {
+    return;
+  }
+
   auto conn = IsConnected(receiver);
   if (conn) {
     conn->Send(FormPacket(Packet::Type::kDirect, std::move(data), receiver));
