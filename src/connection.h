@@ -45,7 +45,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
   bool IsActive() const noexcept { return active_; }
   bool IsConnected() const;
 
-  Endpoint GetEndpoint() const noexcept { return socket_.remote_endpoint(); }
+  Endpoint GetEndpoint() const { return socket_.remote_endpoint(); }
 
  private:
   constexpr static uint16_t kTimeoutSeconds = 10;
