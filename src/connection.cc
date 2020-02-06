@@ -1,16 +1,16 @@
 #include "connection.h"
 
-#include "host.h"
+#include "utils/log.h"
 
 namespace net {
 
-Connection::Connection(Host& h, ba::io_context& io)
+Connection::Connection(ConnectionOwner& h, ba::io_context& io)
     : host_(h),
       socket_(io),
       active_(true),
       deadline_(io) {}
 
-Connection::Connection(Host& h, ba::io_context& io, bi::tcp::socket&& s)
+Connection::Connection(ConnectionOwner& h, ba::io_context& io, bi::tcp::socket&& s)
     : host_(h),
       socket_(std::move(s)),
       active_(false),

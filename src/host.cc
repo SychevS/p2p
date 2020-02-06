@@ -238,7 +238,7 @@ void Host::Connect(const NodeEntrance& peer) {
 
   AddToPendingConn(peer.id);
 
-  auto new_conn = Connection::Create(*this, io_);
+  auto new_conn = Connection::Create(static_cast<ConnectionOwner&>(*this), io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
                     FormPacket(Packet::Type::kRegistration,
                                Network::Instance().GetRegistrationData(),
@@ -299,7 +299,7 @@ void Host::StartAccept() {
                                return;
                              }
 
-                             auto new_conn = Connection::Create(*this, io_, std::move(sock));
+                             auto new_conn = Connection::Create(static_cast<ConnectionOwner&>(*this), io_, std::move(sock));
                              new_conn->StartRead();
 
                              StartAccept();

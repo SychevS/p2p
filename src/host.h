@@ -15,6 +15,7 @@
 
 namespace net {
 
+// Host's owner must implement this interface
 class HostEventHandler {
  public:
   virtual ~HostEventHandler() = default;
@@ -23,7 +24,7 @@ class HostEventHandler {
   virtual void OnNodeRemoved(const NodeId&) = 0;
 };
 
-class Host : public RoutingTableEventHandler, public BanManOwner {
+class Host : public RoutingTableEventHandler, public BanManOwner, public ConnectionOwner {
  public:
   Host(const Config&, HostEventHandler&);
   ~Host();
@@ -41,17 +42,19 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   void ClearBanList();
 
  protected:
+  // RoutingTableEventHandler
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
   bool IsEndpointBanned(const bi::address& addr, uint16_t port) override;
 
+  // BanManOwner
   void OnIdBanned(const NodeId&) override;
   void OnIdUnbanned(const NodeId&) override {}
 
-  void OnPacketReceived(Packet&&);
-
-  void OnConnected(Packet&& conn_pack, Connection::Ptr);
-  void OnConnectionDropped(const NodeId& remote_node, bool active, Connection::DropReason);
-  void OnPendingConnectionError(const NodeId&, Connection::DropReason);
+  // ConnectionOwner
+  void OnPacketReceived(Packet&&) override;
+  void OnConnected(Packet&& conn_pack, Connection::Ptr) override;
+  void OnConnectionDropped(const NodeId& remote_node, bool active, Connection::DropReason) override;
+  void OnPendingConnectionError(const NodeId&, Connection::DropReason) override;
 
  private:
   void TcpListen();
@@ -101,10 +104,6 @@ class Host : public RoutingTableEventHandler, public BanManOwner {
   std::unordered_set<NodeId> pending_connections_;
 
   std::unique_ptr<BanMan> ban_man_ = nullptr;
-
-  // @TODO remove from friends
-  friend class Connection;
 };
-
 } // namespace net
 #endif // NET_HOST_H

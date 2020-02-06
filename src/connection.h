@@ -9,7 +9,7 @@
 
 namespace net {
 
-class Host;
+class ConnectionOwner;
 
 class Connection : public std::enable_shared_from_this<Connection> {
  public:
@@ -26,11 +26,11 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   static std::string DropReasonToString(DropReason);
 
-  static auto Create(Host& h, ba::io_context& io) {
+  static auto Create(ConnectionOwner& h, ba::io_context& io) {
     return Ptr(new Connection(h, io));
   }
 
-  static auto Create(Host& h, ba::io_context& io, bi::tcp::socket&& s) {
+  static auto Create(ConnectionOwner& h, ba::io_context& io, bi::tcp::socket&& s) {
     return Ptr(new Connection(h, io, std::move(s)));
   }
 
@@ -51,9 +51,9 @@ class Connection : public std::enable_shared_from_this<Connection> {
   constexpr static uint16_t kTimeoutSeconds = 10;
 
   // active connection
-  Connection(Host&, ba::io_context&);
+  Connection(ConnectionOwner&, ba::io_context&);
   // passive connection
-  Connection(Host&, ba::io_context&, bi::tcp::socket&&);
+  Connection(ConnectionOwner&, ba::io_context&, bi::tcp::socket&&);
 
   void StartWrite();
   bool CheckRead(const boost::system::error_code&, size_t expected, size_t len);
@@ -61,7 +61,7 @@ class Connection : public std::enable_shared_from_this<Connection> {
 
   void ResetTimer();
 
-  Host& host_;
+  ConnectionOwner& host_;
   bi::tcp::socket socket_;
   Packet packet_;
 
@@ -76,5 +76,14 @@ class Connection : public std::enable_shared_from_this<Connection> {
   NodeId remote_node_;
   ba::deadline_timer deadline_;
 };
+
+class ConnectionOwner {
+ public:
+  virtual void OnPacketReceived(Packet&&) = 0;
+  virtual void OnConnected(Packet&& conn_pack, Connection::Ptr) = 0;
+  virtual void OnConnectionDropped(const NodeId& remote_node, bool active, Connection::DropReason) = 0;
+  virtual void OnPendingConnectionError(const NodeId&, Connection::DropReason) = 0;
+};
+
 } // namespace net
 #endif // NET_CONNECTION_H
