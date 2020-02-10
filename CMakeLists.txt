@@ -109,3 +109,9 @@ if(NOT MSVC)
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 endif()
+
+install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static
+        LIBRARY
+          DESTINATION lib
+        PUBLIC_HEADER
+          DESTINATION include)
