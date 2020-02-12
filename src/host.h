@@ -36,6 +36,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
   void SendBroadcastIfNoConnection(const NodeId& to, ByteVector&& msg);
 
   void AddKnownNodes(const std::vector<NodeEntrance>&);
+  void GetKnownNodes(std::vector<NodeEntrance>&);
 
   void Ban(const NodeId&);
   void Unban(const NodeId&);

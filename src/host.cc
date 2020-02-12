@@ -249,6 +249,10 @@ void Host::AddKnownNodes(const std::vector<NodeEntrance>& nodes) {
   routing_table_->AddNodes(nodes);
 }
 
+void Host::GetKnownNodes(std::vector<NodeEntrance>& nodes) {
+  routing_table_->GetKnownNodes(nodes);
+}
+
 void Host::TcpListen() {
   auto& contacts = Network::Instance().GetHostContacts();
 
