@@ -1,7 +1,6 @@
 #ifndef NET_BANMAN_H
 #define NET_BANMAN_H
 
-#include <iostream>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -11,23 +10,6 @@
 namespace net {
 
 class RoutingTable;
-
-struct BanEntry {
-  bi::address addr;
-  uint16_t port = 0;
-
-  NodeId id{};
-
-  friend bool operator<(const BanEntry& lhs, const BanEntry& rhs) {
-    if (lhs.addr == rhs.addr) return lhs.port && rhs.port && lhs.port < rhs.port;
-    return lhs.addr < rhs.addr;
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const BanEntry& b) {
-    os << b.addr << ":" << b.port << "-" << IdToBase58(b.id);
-    return os;
-  }
-};
 
 class BanManOwner {
  public:

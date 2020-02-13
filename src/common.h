@@ -116,10 +116,27 @@ struct Packet {
   ByteVector data;
 };
 
-std::vector<NodeEntrance> GetDefaultBootNodes();
-
 std::string IdToBase58(const NodeId&);
 NodeId IdFromBase58(const std::string&);
+
+struct BanEntry {
+  bi::address addr;
+  uint16_t port = 0;
+
+  NodeId id{};
+
+  friend bool operator<(const BanEntry& lhs, const BanEntry& rhs) {
+    if (lhs.addr == rhs.addr) return lhs.port && rhs.port && lhs.port < rhs.port;
+    return lhs.addr < rhs.addr;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const BanEntry& b) {
+    os << b.addr << ":" << b.port << "-" << IdToBase58(b.id);
+    return os;
+  }
+};
+
+std::vector<NodeEntrance> GetDefaultBootNodes();
 
 } // namespace net
 

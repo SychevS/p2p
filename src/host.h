@@ -41,6 +41,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
   void Ban(const NodeId&);
   void Unban(const NodeId&);
   void ClearBanList();
+  void GetBanList(std::set<BanEntry>&) const;
 
  protected:
   // RoutingTableEventHandler

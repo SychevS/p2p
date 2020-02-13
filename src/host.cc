@@ -63,6 +63,10 @@ void Host::ClearBanList() {
   ban_man_->Clear();
 }
 
+void Host::GetBanList(std::set<BanEntry>& ret_container) const {
+  ban_man_->GetBanned(ret_container);
+}
+
 void Host::OnIdBanned(const NodeId& peer) {
   DropConnections(peer);
   ClearSendQueue(peer);
