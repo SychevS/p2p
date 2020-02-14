@@ -110,6 +110,8 @@ else()
   target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 endif()
 
+set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER src/host.h)
+
 install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static
         LIBRARY
           DESTINATION lib
