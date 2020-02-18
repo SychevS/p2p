@@ -401,7 +401,7 @@ void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason dro
   LOG(INFO) << "Pending connection with " << IdToBase58(id)
             << " was closed, reason " << Connection::DropReasonToString(drop_reason);
 
-  if (drop_reason == Connection::DropReason::kConnectionError) {
+  if (drop_reason == Connection::DropReason::kConnectionError || drop_reason == Connection::DropReason::kTimeout) {
     AddToUnreachable(id);
   }
 
@@ -435,20 +435,21 @@ void Host::DropConnections(const NodeId& id) {
 }
 
 bool Host::IsUnreachable(const NodeId& peer) {
-  Guard g(unreachable_mux_);
-  auto it = unreachable_peers_.find(peer);
-  if (it == unreachable_peers_.end()) return false;
-
   using namespace std::chrono;
-
   auto now = steady_clock::now();
-  auto seconds_unreachable = duration_cast<seconds>(now - it->second);
-  if (seconds_unreachable >= kMaxSecondsInUnreachablePool_) {
-    unreachable_peers_.erase(it);
-    return false;
+
+  Guard g(unreachable_mux_);
+  for (auto it = unreachable_peers_.begin(); it != unreachable_peers_.end();) {
+    auto seconds_unreachable = duration_cast<seconds>(now - it->second);
+
+    if (seconds_unreachable >= kMaxSecondsInUnreachablePool_) {
+      it = unreachable_peers_.erase(it);
+    } else {
+      ++it;
+    }
   }
 
-  return true;
+  return unreachable_peers_.find(peer) != unreachable_peers_.end();
 }
 
 void Host::AddToUnreachable(const NodeId& peer) {
