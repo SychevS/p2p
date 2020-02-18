@@ -435,10 +435,11 @@ void Host::DropConnections(const NodeId& id) {
 }
 
 bool Host::IsUnreachable(const NodeId& peer) {
+  Guard g(unreachable_mux_);
+
   using namespace std::chrono;
   auto now = steady_clock::now();
 
-  Guard g(unreachable_mux_);
   for (auto it = unreachable_peers_.begin(); it != unreachable_peers_.end();) {
     auto seconds_unreachable = duration_cast<seconds>(now - it->second);
 
