@@ -95,6 +95,7 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
 
     case RoutingTableEventType::kNodeAdded :
       LOG(INFO) << "ROUTING TABLE: add " << IdToBase58(node.id);
+      RemoveFromUnreachable(node.id);
       event_handler_.OnNodeDiscovered(node.id);
       break;
 
@@ -233,6 +234,11 @@ void Host::Connect(const NodeEntrance& peer) {
   if (IsEndpointBanned(peer.address, peer.tcp_port)) {
     ClearSendQueue(peer.id);
     RemoveFromPendingConn(peer.id);
+    return;
+  }
+
+  if (IsUnreachable(peer.id)) {
+    ClearSendQueue(peer.id);
     return;
   }
 
@@ -395,6 +401,10 @@ void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason dro
   LOG(INFO) << "Pending connection with " << IdToBase58(id)
             << " was closed, reason " << Connection::DropReasonToString(drop_reason);
 
+  if (drop_reason == Connection::DropReason::kConnectionError) {
+    AddToUnreachable(id);
+  }
+
   ClearSendQueue(id);
   RemoveFromPendingConn(id);
 }
@@ -422,5 +432,32 @@ void Host::DropConnections(const NodeId& id) {
     it = connections_.erase(it);
     LOG(INFO) << "Manualy drop connection with " << IdToBase58(id);
   }
+}
+
+bool Host::IsUnreachable(const NodeId& peer) {
+  Guard g(unreachable_mux_);
+  auto it = unreachable_peers_.find(peer);
+  if (it == unreachable_peers_.end()) return false;
+
+  using namespace std::chrono;
+
+  auto now = steady_clock::now();
+  auto seconds_unreachable = duration_cast<seconds>(now - it->second);
+  if (seconds_unreachable >= kMaxSecondsInUnreachablePool_) {
+    unreachable_peers_.erase(it);
+    return false;
+  }
+
+  return true;
+}
+
+void Host::AddToUnreachable(const NodeId& peer) {
+  Guard g(unreachable_mux_);
+  unreachable_peers_[peer] = std::chrono::steady_clock::now();
+}
+
+void Host::RemoveFromUnreachable(const NodeId& peer) {
+  Guard g(unreachable_mux_);
+  unreachable_peers_.erase(peer);
 }
 } // namespace net

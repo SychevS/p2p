@@ -1,6 +1,7 @@
 #ifndef NET_HOST_H
 #define NET_HOST_H
 
+#include <chrono>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -82,6 +83,10 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
   void CheckSendQueue(const NodeId&, Connection::Ptr);
   void DropConnections(const NodeId&);
 
+  bool IsUnreachable(const NodeId&);
+  void AddToUnreachable(const NodeId&);
+  void RemoveFromUnreachable(const NodeId&);
+
   ba::io_context io_;
   bi::tcp::acceptor acceptor_;
   HostEventHandler& event_handler_;
@@ -104,6 +109,10 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
 
   Mutex pend_conn_mux_;
   std::unordered_set<NodeId> pending_connections_;
+
+  Mutex unreachable_mux_;
+  constexpr static std::chrono::seconds kMaxSecondsInUnreachablePool_{120};
+  std::unordered_map<NodeId, std::chrono::steady_clock::time_point> unreachable_peers_;
 
   std::unique_ptr<BanMan> ban_man_ = nullptr;
 };
