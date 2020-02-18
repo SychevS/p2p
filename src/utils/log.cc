@@ -12,13 +12,12 @@ void InitLogger() {
 
     Configurations conf;
     conf.set(Level::Global, ConfigurationType::Enabled, "true");
-    conf.set(Level::Global, ConfigurationType::ToFile, "true");
+    conf.set(Level::Global, ConfigurationType::ToFile, "false");
     conf.set(Level::Global, ConfigurationType::ToStandardOutput, "false");
     conf.set(Level::Global, ConfigurationType::Filename, "debug.log");
 
-    conf.set(Level::Info, ConfigurationType::ToStandardOutput, "true");
-    conf.set(Level::Error, ConfigurationType::ToStandardOutput, "true");
-    conf.set(Level::Fatal, ConfigurationType::ToStandardOutput, "true");
+    conf.set(Level::Error, ConfigurationType::ToFile, "true");
+    conf.set(Level::Fatal, ConfigurationType::ToFile, "true");
 
     Loggers::reconfigureLogger("default", conf);
 
