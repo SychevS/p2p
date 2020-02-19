@@ -94,13 +94,13 @@ void Host::HandleRoutTableEvent(const NodeEntrance& node, RoutingTableEventType 
       break;
 
     case RoutingTableEventType::kNodeAdded :
-      LOG(INFO) << "ROUTING TABLE: add " << IdToBase58(node.id);
+      LOG(DEBUG) << "ROUTING TABLE: add " << IdToBase58(node.id);
       RemoveFromUnreachable(node.id);
       event_handler_.OnNodeDiscovered(node.id);
       break;
 
     case RoutingTableEventType::kNodeRemoved :
-      LOG(INFO) << "ROUTING TABLE: remove " << IdToBase58(node.id);
+      LOG(DEBUG) << "ROUTING TABLE: remove " << IdToBase58(node.id);
       event_handler_.OnNodeRemoved(node.id);
       break;
   }
@@ -332,9 +332,9 @@ void Host::OnConnected(Packet&& conn_pack, Connection::Ptr new_conn) {
     new_conn->Send(FormPacket(Packet::Type::kRegistration,
                               Network::Instance().GetRegistrationData(),
                               remote_node));
-    LOG(INFO) << "New passive connection with " << IdToBase58(remote_node);
+    LOG(DEBUG) << "New passive connection with " << IdToBase58(remote_node);
   } else {
-    LOG(INFO) << "New active connection with " << IdToBase58(remote_node);
+    LOG(DEBUG) << "New active connection with " << IdToBase58(remote_node);
     RemoveFromPendingConn(remote_node);
   }
 
@@ -349,7 +349,7 @@ void Host::OnConnectionDropped(const NodeId& remote_node, bool active,
   for (auto it = range.first; it != range.second;) {
     if (it->second->IsActive() == active) {
       it = connections_.erase(it);
-      LOG(INFO) << "Connection with " << IdToBase58(remote_node)
+      LOG(DEBUG) << "Connection with " << IdToBase58(remote_node)
                 << " was closed, active: " << active << ". Reason: "
                 << Connection::DropReasonToString(drop_reason);
     } else {
@@ -398,7 +398,7 @@ void Host::CheckSendQueue(const NodeId& id, Connection::Ptr conn) {
 }
 
 void Host::OnPendingConnectionError(const NodeId& id, Connection::DropReason drop_reason) {
-  LOG(INFO) << "Pending connection with " << IdToBase58(id)
+  LOG(DEBUG) << "Pending connection with " << IdToBase58(id)
             << " was closed, reason " << Connection::DropReasonToString(drop_reason);
 
   if (drop_reason == Connection::DropReason::kConnectionError || drop_reason == Connection::DropReason::kTimeout) {
@@ -430,7 +430,7 @@ void Host::DropConnections(const NodeId& id) {
   for (auto it = range.first; it != range.second;) {
     it->second->Close();
     it = connections_.erase(it);
-    LOG(INFO) << "Manualy drop connection with " << IdToBase58(id);
+    LOG(DEBUG) << "Manualy drop connection with " << IdToBase58(id);
   }
 }
 

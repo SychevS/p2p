@@ -57,7 +57,7 @@ void Connection::Drop(DropReason reason) {
   } else if (active_) {
     host_.OnPendingConnectionError(remote_node_, reason);
   } else {
-    LOG(INFO) << "Drop passive connection registration passed: " << registation_passed_;
+    LOG(DEBUG) << "Drop passive connection registration passed: " << registation_passed_;
   }
 
   Close();

@@ -103,7 +103,7 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
   if (!packet) return;
 
   if (!CheckEndpoint(*packet)) {
-    LOG(INFO) << "Endpoint check failed from " << from.address() << ", " << from.port();
+    LOG(DEBUG) << "Endpoint check failed from " << from.address() << ", " << from.port();
     return;
   }
 
