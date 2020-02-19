@@ -7,21 +7,23 @@ namespace net {
 RoutingTable::NetExplorer::NetExplorer(RoutingTable& rt) : routing_table_(rt) {}
 
 RoutingTable::NetExplorer::~NetExplorer() {
+  stopper_.set_value();
+
   if (discovery_thread_.joinable()) {
     discovery_thread_.join();
   }
 }
 
 void RoutingTable::NetExplorer::Start() {
-  discovery_thread_ = std::thread(&RoutingTable::NetExplorer::DiscoveryRoutine, this);
+  discovery_thread_ = std::thread(&RoutingTable::NetExplorer::DiscoveryRoutine, this, stopper_.get_future());
 }
 
-void RoutingTable::NetExplorer::DiscoveryRoutine() {
+void RoutingTable::NetExplorer::DiscoveryRoutine(std::future<void>&& stop_condition) {
   std::mt19937 gen(std::random_device().operator()());
   std::uniform_int_distribution<uint32_t> dist;
 
   while (true) {
-    std::this_thread::sleep_for(kDiscoveryInterval);
+    if (stop_condition.wait_for(kDiscoveryInterval) == std::future_status::ready) break;
 
     NodeId random_id;
     uint32_t* ptr = random_id.GetPtr();

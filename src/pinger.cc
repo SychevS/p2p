@@ -7,20 +7,22 @@ namespace net {
 RoutingTable::Pinger::Pinger(RoutingTable& rt) : routing_table_(rt) {}
 
 RoutingTable::Pinger::~Pinger() {
+  stopper_.set_value();
+
   if (ping_thread_.joinable()) {
     ping_thread_.join();
   }
 }
 
 void RoutingTable::Pinger::Start() {
-  ping_thread_ = std::thread(&RoutingTable::Pinger::PingRoutine, this);
+  ping_thread_ = std::thread(&RoutingTable::Pinger::PingRoutine, this, stopper_.get_future());
 }
 
-void RoutingTable::Pinger::PingRoutine() {
+void RoutingTable::Pinger::PingRoutine(std::future<void>&& stop_condition) {
   uint16_t current_bucket = 0;
 
   while (true) {
-    std::this_thread::sleep_for(kPingExpirationSeconds);
+    if (stop_condition.wait_for(kPingExpirationSeconds) == std::future_status::ready) break;
 
     if (routing_table_.total_nodes_ == 0) {
       auto& config = Network::Instance().GetConfig();

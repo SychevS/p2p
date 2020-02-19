@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <limits>
 #include <list>
 #include <unordered_map>
@@ -106,13 +107,14 @@ class RoutingTable : public UdpSocketEventHandler {
     void CheckFindNodeResponce(const KademliaDatagram&);
 
    private:
-    void DiscoveryRoutine();
+    void DiscoveryRoutine(std::future<void>&&);
 
     RoutingTable& routing_table_;
     std::thread discovery_thread_;
 
     Mutex find_node_mux_;
     std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
+    std::promise<void> stopper_;
   };
 
   class Pinger {
@@ -126,13 +128,14 @@ class RoutingTable : public UdpSocketEventHandler {
     void CheckPingResponce(const KademliaDatagram&);
 
    private:
-    void PingRoutine();
+    void PingRoutine(std::future<void>&&);
 
     RoutingTable& routing_table_;
     std::thread ping_thread_;
 
     Mutex ping_mux_;
     std::unordered_map<NodeId, uint8_t> ping_sent_;
+    std::promise<void> stopper_;
   };
 
   const NodeEntrance host_data_;
