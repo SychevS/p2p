@@ -7,15 +7,13 @@ namespace net {
 RoutingTable::Pinger::Pinger(RoutingTable& rt) : routing_table_(rt) {}
 
 RoutingTable::Pinger::~Pinger() {
-  stopper_.set_value();
-
   if (ping_thread_.joinable()) {
     ping_thread_.join();
   }
 }
 
-void RoutingTable::Pinger::Start() {
-  ping_thread_ = std::thread(&RoutingTable::Pinger::PingRoutine, this, stopper_.get_future());
+void RoutingTable::Pinger::Start(std::future<void>&& stop_condition) {
+  ping_thread_ = std::thread(&RoutingTable::Pinger::PingRoutine, this, std::move(stop_condition));
 }
 
 void RoutingTable::Pinger::PingRoutine(std::future<void>&& stop_condition) {

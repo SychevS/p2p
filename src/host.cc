@@ -34,6 +34,9 @@ Host::Host(const Config& config, HostEventHandler& event_handler)
 }
 
 Host::~Host() {
+  io_.stop();
+  routing_table_->Stop();
+
   if (working_thread_.joinable()) {
     working_thread_.join();
   }
@@ -292,7 +295,7 @@ void Host::StartAccept() {
                              }
 
                              if (err) {
-                               LOG(ERROR) << "Cannot accept new connection, error occured. "
+                               LOG(INFO) << "Cannot accept new connection: "
                                           << err.value() << ", " << err.message();
                                return;
                              }

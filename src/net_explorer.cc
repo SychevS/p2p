@@ -7,15 +7,13 @@ namespace net {
 RoutingTable::NetExplorer::NetExplorer(RoutingTable& rt) : routing_table_(rt) {}
 
 RoutingTable::NetExplorer::~NetExplorer() {
-  stopper_.set_value();
-
   if (discovery_thread_.joinable()) {
     discovery_thread_.join();
   }
 }
 
-void RoutingTable::NetExplorer::Start() {
-  discovery_thread_ = std::thread(&RoutingTable::NetExplorer::DiscoveryRoutine, this, stopper_.get_future());
+void RoutingTable::NetExplorer::Start(std::future<void>&& stop_condition) {
+  discovery_thread_ = std::thread(&RoutingTable::NetExplorer::DiscoveryRoutine, this, std::move(stop_condition));
 }
 
 void RoutingTable::NetExplorer::DiscoveryRoutine(std::future<void>&& stop_condition) {

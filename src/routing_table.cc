@@ -22,13 +22,20 @@ RoutingTable::RoutingTable(ba::io_context& io,
       explorer_(*this) {
   socket_->Open();
 
-  pinger_.Start();
-  explorer_.Start();
+  pinger_.Start(pinger_stopper_.get_future());
+  explorer_.Start(discovery_stopper_.get_future());
 }
 
 RoutingTable::~RoutingTable() {
-  socket_->Close();
+  Guard g(k_bucket_mux_);
   delete []k_buckets_;
+}
+
+void RoutingTable::Stop() {
+  pinger_stopper_.set_value();
+  discovery_stopper_.set_value();
+
+  socket_->Close();
 }
 
 void RoutingTable::AddNodes(const std::vector<NodeEntrance>& nodes) {

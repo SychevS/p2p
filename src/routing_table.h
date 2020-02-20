@@ -37,6 +37,8 @@ class RoutingTable : public UdpSocketEventHandler {
   RoutingTable(ba::io_context& io, RoutingTableEventHandler& host);
   ~RoutingTable() override;
 
+  void Stop();
+
   // starts lookup if not started yet
   void AddNodes(const std::vector<NodeEntrance>&);
 
@@ -102,7 +104,7 @@ class RoutingTable : public UdpSocketEventHandler {
     NetExplorer(RoutingTable&);
     ~NetExplorer();
 
-    void Start();
+    void Start(std::future<void>&& stop_condition);
     void Find(const NodeId&, const std::vector<NodeEntrance>& find_list);
     void CheckFindNodeResponce(const KademliaDatagram&);
 
@@ -114,7 +116,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
     Mutex find_node_mux_;
     std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
-    std::promise<void> stopper_;
   };
 
   class Pinger {
@@ -122,7 +123,7 @@ class RoutingTable : public UdpSocketEventHandler {
     Pinger(RoutingTable&);
     ~Pinger();
 
-    void Start();
+    void Start(std::future<void>&& stop_condition);
     void SendPing(const NodeEntrance& target, KBucket& bucket,
                   std::shared_ptr<NodeEntrance> replacer = nullptr);
     void CheckPingResponce(const KademliaDatagram&);
@@ -135,7 +136,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
     Mutex ping_mux_;
     std::unordered_map<NodeId, uint8_t> ping_sent_;
-    std::promise<void> stopper_;
   };
 
   const NodeEntrance host_data_;
@@ -151,6 +151,9 @@ class RoutingTable : public UdpSocketEventHandler {
 
   Pinger pinger_;
   NetExplorer explorer_;
+
+  std::promise<void> pinger_stopper_;
+  std::promise<void> discovery_stopper_;
 };
 
 inline NodeId RoutingTable::Distance(const NodeId& a, const NodeId& b) {
