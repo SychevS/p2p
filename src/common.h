@@ -29,6 +29,7 @@ constexpr uint16_t kDefaultPort = 31392;
 constexpr const char* kLocalHost = "127.0.0.1";
 constexpr const char* kAllInterfaces = "0.0.0.0";
 constexpr const char* kBanFileName = "banlist.dat";
+constexpr const char* kDbPath = "p2p_db";
 
 namespace ba = boost::asio;
 namespace bi = ba::ip;

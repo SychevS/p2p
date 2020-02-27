@@ -19,7 +19,8 @@ RoutingTable::RoutingTable(ba::io_context& io,
       kBucketsNum(static_cast<uint16_t>(host_data_.id.size() * 8)), // num of bits in NodeId
       k_buckets_(new KBucket[kBucketsNum]),
       pinger_(*this),
-      explorer_(*this) {
+      explorer_(*this),
+      db_(kDbPath) {
   socket_->Open();
 
   pinger_.Start(pinger_stopper_.get_future());

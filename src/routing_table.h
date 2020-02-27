@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "common.h"
+#include "database.h"
 #include "k_bucket.h"
 #include "kademlia_datagram.h"
 #include "udp.h"
@@ -154,6 +155,8 @@ class RoutingTable : public UdpSocketEventHandler {
 
   std::promise<void> pinger_stopper_;
   std::promise<void> discovery_stopper_;
+
+  Database db_;
 };
 
 inline NodeId RoutingTable::Distance(const NodeId& a, const NodeId& b) {
