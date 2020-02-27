@@ -1,3 +1,6 @@
 [submodule "third-party/miniupnp"]
 	path = third-party/miniupnp
 	url = https://github.com/miniupnp/miniupnp.git
+[submodule "third-party/leveldb"]
+	path = third-party/leveldb
+	url = https://github.com/google/leveldb.git
