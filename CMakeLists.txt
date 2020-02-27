@@ -36,7 +36,7 @@ macro(configure_msvc_flags)
 endmacro()
 
 macro(configure_third_party_compiler_flags)
-  if (MSVC)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     if ("${CMAKE_CXX_FLAGS}" MATCHES "([/-]W[1-4])")
       message("Other Flags /W detected, replace it to suppress third party warnings")
       local_match_and_replace(CMAKE_CXX_FLAGS "([/-]W[0-4])" "/W0")
@@ -45,6 +45,8 @@ macro(configure_third_party_compiler_flags)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W0")
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W0")
     endif()
+  elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
   endif()
 endmacro()
 
@@ -101,7 +103,7 @@ endif()
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging libminiupnpc-static
+target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging libminiupnpc-static leveldb
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
