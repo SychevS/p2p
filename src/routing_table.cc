@@ -132,8 +132,12 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
       HandleFindFragment(*packet);
       break;
     case FragmentFoundDatagram::type :
+      break;
     case FragmentNotFoundDatagram::type :
+      break;
     case StoreDatagram::type :
+      HandleStoreFragment(*packet);
+      break;
     default :
       break;
   }
@@ -184,6 +188,12 @@ void RoutingTable::HandleFindFragment(const KademliaDatagram& d) {
 
   FragmentFoundDatagram answer(host_data_, find_fragment.target, std::move(fragment));
   socket_->Send(answer.ToUdp(d.node_from));
+}
+
+void RoutingTable::HandleStoreFragment(const KademliaDatagram& d) {
+  auto& store_datagram = dynamic_cast<const StoreDatagram&>(d);
+  db_.Write(reinterpret_cast<const uint8_t*>(store_datagram.id.GetPtr()),
+            store_datagram.id.size(), store_datagram.fragment);
 }
 
 void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {
