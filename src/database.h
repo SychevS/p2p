@@ -25,6 +25,17 @@ class WriteBatch {
     ClearStreams();
   }
 
+  template<class V>
+  void Write(const uint8_t* key, size_t key_size, const V& value) {
+    stream_val_.Put(value);
+
+    leveldb::Slice key_slice(reinterpret_cast<const char*>(key), key_size);
+    leveldb::Slice val_slice(reinterpret_cast<const char*>(stream_val_.GetData().data()),
+                             stream_val_.GetData().size());
+    batch_.Put(key_slice, val_slice);
+    ClearStreams();
+  }
+
   template<class K>
   void Remove(const K& key) {
     stream_key_.Put(key);
@@ -32,6 +43,11 @@ class WriteBatch {
                              stream_key_.GetData().size());
     batch_.Delete(key_slice);
     ClearStreams();
+  }
+
+  void Remove(const uint8_t* key, size_t key_size) {
+    leveldb::Slice key_slice(reinterpret_cast<const char*>(key), key_size);
+    batch_.Delete(key_slice);
   }
 
   void Clear() {
@@ -119,10 +135,27 @@ class Database {
     is.Get(value);
   }
 
+  template<class V>
+  void Read(const uint8_t* key, size_t key_size, V& value) const {
+    leveldb::Slice key_slice(reinterpret_cast<const char*>(key), key_size);
+
+    std::string str_value;
+    HandleError(db_ptr_->Get(read_options_, key_slice, &str_value));
+    Unserializer is(str_value.data(), str_value.size());
+    is.Get(value);
+  }
+
   template<class K, class V>
   void Write(const K& key, const V& value) {
     WriteBatch batch;
     batch.Write(key, value);
+    Write(batch);
+  }
+
+  template<class V>
+  void Write(const uint8_t* key, size_t key_size, const V& value) {
+    WriteBatch batch;
+    batch.Write(key, key_size, value);
     Write(batch);
   }
 
@@ -142,6 +175,12 @@ class Database {
   void Remove(const K& key) {
     WriteBatch batch;
     batch.Remove(key);
+    Write(batch);
+  }
+
+  void Remove(uint8_t* key, size_t key_size) {
+    WriteBatch batch;
+    batch.Remove(key, key_size);
     Write(batch);
   }
 

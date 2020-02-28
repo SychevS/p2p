@@ -85,6 +85,7 @@ class RoutingTable : public UdpSocketEventHandler {
 
   void HandlePing(const KademliaDatagram&);
   void HandleFindNode(const KademliaDatagram&);
+  void HandleFindFragment(const KademliaDatagram&);
 
   uint16_t KBucketIndex(const NodeId& id) const noexcept;
 

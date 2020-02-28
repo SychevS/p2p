@@ -127,6 +127,15 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
       break;
     case FindNodeRespDatagram::type :
       explorer_.CheckFindNodeResponce(*packet);
+      break;
+    case FindFragmentDatagram::type :
+      HandleFindFragment(*packet);
+      break;
+    case FragmentFoundDatagram::type :
+    case FragmentNotFoundDatagram::type :
+    case StoreDatagram::type :
+    default :
+      break;
   }
 }
 
@@ -156,6 +165,25 @@ void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
   FindNodeRespDatagram answer(host_data_, find_node.target, std::move(requested_nodes));
   socket_->Send(answer.ToUdp(d.node_from));
   UpdateKBuckets(d.node_from);
+}
+
+void RoutingTable::HandleFindFragment(const KademliaDatagram& d) {
+  auto& find_fragment = dynamic_cast<const FindFragmentDatagram&>(d);
+  ByteVector fragment;
+  UpdateKBuckets(d.node_from);
+
+  try {
+    db_.Read(reinterpret_cast<const uint8_t*>(find_fragment.target.GetPtr()),
+             find_fragment.target.size(), fragment);
+  } catch (...) {
+    FragmentNotFoundDatagram answer(host_data_, find_fragment.target,
+                                    NearestNodes(find_fragment.target));
+    socket_->Send(answer.ToUdp(d.node_from));
+    return;
+  }
+
+  FragmentFoundDatagram answer(host_data_, find_fragment.target, std::move(fragment));
+  socket_->Send(answer.ToUdp(d.node_from));
 }
 
 void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {
