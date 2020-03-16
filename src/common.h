@@ -59,6 +59,7 @@ struct Config {
 
   bool traverse_nat = true;
   bool use_default_boot_nodes = true;
+  bool full_net_discovery = false;
   std::vector<NodeEntrance> custom_boot_nodes;
 
   Config() {}
@@ -66,9 +67,13 @@ struct Config {
 
   Config(const NodeId& id, const std::string& listen_address,
          uint16_t listen_port, bool traverse_nat, bool use_default_boot_nodes,
-         const std::vector<NodeEntrance>& custom_boot_nodes)
-      : id(id), listen_address(listen_address), listen_port(listen_port),
-        traverse_nat(traverse_nat), use_default_boot_nodes(use_default_boot_nodes),
+         bool full_discovery, const std::vector<NodeEntrance>& custom_boot_nodes)
+      : id(id),
+        listen_address(listen_address),
+        listen_port(listen_port),
+        traverse_nat(traverse_nat),
+        use_default_boot_nodes(use_default_boot_nodes),
+        full_net_discovery(full_discovery),
         custom_boot_nodes(custom_boot_nodes) {}
 };
 
@@ -149,6 +154,13 @@ struct hash<net::NodeId> {
     auto ptr = reinterpret_cast<const uint8_t*>(id.GetPtr());
     std::copy(ptr, ptr + sizeof(res), reinterpret_cast<uint8_t*>(&res));
     return res;
+  }
+};
+
+template<>
+struct hash<net::NodeEntrance> {
+  size_t operator()(const net::NodeEntrance& n) const noexcept {
+    return hash<net::NodeId>{}(n.id);
   }
 };
 

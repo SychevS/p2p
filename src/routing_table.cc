@@ -19,7 +19,7 @@ RoutingTable::RoutingTable(ba::io_context& io,
       kBucketsNum(static_cast<uint16_t>(host_data_.id.size() * 8)), // num of bits in NodeId
       k_buckets_(new KBucket[kBucketsNum]),
       pinger_(*this),
-      explorer_(*this) {
+      explorer_(*this, Network::Instance().GetConfig().full_net_discovery) {
   socket_->Open();
 
   pinger_.Start(pinger_stopper_.get_future());
@@ -61,6 +61,11 @@ void RoutingTable::StartFindNode(const NodeId& id) {
 
 void RoutingTable::GetKnownNodes(std::vector<NodeEntrance>& result) {
   result.clear();
+
+  if (Network::Instance().GetConfig().full_net_discovery) {
+    return explorer_.GetKnownNodes(result);
+  }
+
   Guard g(k_bucket_mux_);
   for (size_t i = 0; i < kBucketsNum; ++i) {
     const auto& nodes = k_buckets_[i].GetNodes();
