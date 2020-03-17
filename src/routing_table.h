@@ -125,8 +125,14 @@ class RoutingTable : public UdpSocketEventHandler {
     static constexpr std::chrono::seconds kUpdateNodesInterval{60 * 10};
     Mutex nodes_mux_;
     struct Nodes {
-      std::unordered_set<NodeEntrance> actual;
-      std::unordered_set<NodeEntrance> updates;
+      struct NodeEqual {
+        bool operator()(const NodeEntrance& l, const NodeEntrance& r) const {
+          return l.id == r.id;
+        }
+      };
+
+      std::unordered_set<NodeEntrance, std::hash<NodeEntrance>, NodeEqual> actual;
+      std::unordered_set<NodeEntrance, std::hash<NodeEntrance>, NodeEqual> updates;
     } nodes_;
   };
 
