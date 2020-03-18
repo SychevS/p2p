@@ -196,6 +196,7 @@ void Network::Init(const Config& config) {
   host_contacts_.address = bi::make_address(kAllInterfaces);
   host_contacts_.udp_port = config_.listen_port;
   host_contacts_.tcp_port = config_.listen_port;
+  host_contacts_.user_data = config_.host_data;
 
   if (config_addr.is_unspecified()) {
     LOG(INFO) << "IP address in config is unspecified.";

@@ -61,6 +61,7 @@ struct Config {
   bool traverse_nat = true;
   bool use_default_boot_nodes = true;
   bool full_net_discovery = false;
+  uint64_t host_data = 0;
   std::vector<NodeEntrance> custom_boot_nodes;
 
   Config() {}
@@ -68,13 +69,15 @@ struct Config {
 
   Config(const NodeId& id, const std::string& listen_address,
          uint16_t listen_port, bool traverse_nat, bool use_default_boot_nodes,
-         bool full_discovery, const std::vector<NodeEntrance>& custom_boot_nodes)
+         bool full_discovery, uint64_t host_data,
+         const std::vector<NodeEntrance>& custom_boot_nodes)
       : id(id),
         listen_address(listen_address),
         listen_port(listen_port),
         traverse_nat(traverse_nat),
         use_default_boot_nodes(use_default_boot_nodes),
         full_net_discovery(full_discovery),
+        host_data(host_data),
         custom_boot_nodes(custom_boot_nodes) {}
 };
 
