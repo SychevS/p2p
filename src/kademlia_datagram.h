@@ -19,7 +19,7 @@ struct KademliaDatagram {
   static std::unique_ptr<KademliaDatagram>
   ReinterpretUdpPacket(const bi::udp::endpoint& ep, const ByteVector& data);
 
-  UdpDatagram BaseToUdp(const NodeEntrance& to, uint8_t type) const noexcept;
+  UdpDatagram BaseToUdp(const NodeEntrance& to, uint8_t type, bool user_data) const noexcept;
 
   NodeEntrance node_from;
 };
@@ -31,7 +31,7 @@ struct PingDatagram : public KademliaDatagram {
     : KademliaDatagram(node_from) {}
 
   UdpDatagram ToUdp(const NodeEntrance& to) const noexcept {
-    return BaseToUdp(to, type);
+    return BaseToUdp(to, type, true);
   }
 
   uint8_t DatagramType() const noexcept override { return type; }
@@ -44,7 +44,7 @@ struct PingRespDatagram : public KademliaDatagram {
     : KademliaDatagram(node_from) {}
 
   UdpDatagram ToUdp(const NodeEntrance& to) const noexcept {
-    return BaseToUdp(to, type);
+    return BaseToUdp(to, type, true);
   }
 
   uint8_t DatagramType() const noexcept override { return type; }

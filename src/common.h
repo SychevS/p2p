@@ -41,6 +41,7 @@ struct NodeEntrance {
   bi::address address;
   uint16_t udp_port;
   uint16_t tcp_port;
+  uint64_t user_data = 0;
 
   friend bool operator==(const NodeEntrance& lhs, const NodeEntrance& rhs);
   friend bool operator!=(const NodeEntrance& lhs, const NodeEntrance& rhs);

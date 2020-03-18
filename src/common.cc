@@ -24,6 +24,7 @@ void NodeEntrance::Put(Serializer& s) const {
   s.Put(address.to_string());
   s.Put(udp_port);
   s.Put(tcp_port);
+  s.Put(user_data);
 }
 
 bool NodeEntrance::Get(Unserializer& u) {
@@ -33,7 +34,10 @@ bool NodeEntrance::Get(Unserializer& u) {
   boost::system::error_code err;
   address = bi::address::from_string(a, err);
   if (err) return false;
-  return u.Get(udp_port) && u.Get(tcp_port);
+  if (!u.Get(udp_port)) return false;
+  if (!u.Get(tcp_port)) return false;
+  u.Get(user_data);
+  return true;
 }
 
 void NodeEntrance::PutId(Serializer& s) const {
