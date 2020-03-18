@@ -1,5 +1,7 @@
 #include "host.h"
 
+#include <cmath>
+
 #include "utils/log.h"
 
 namespace net {
@@ -68,6 +70,35 @@ void Host::ClearBanList() {
 
 void Host::GetBanList(std::set<BanEntry>& ret_container) const {
   ban_man_->GetBanned(ret_container);
+}
+
+std::vector<FragmentId> Host::StoreValue(ByteVector&& value) {
+  static auto max_size = RoutingTable::GetMaxFragmentSize();
+  std::vector<FragmentId> result;
+
+  auto num_fragments = static_cast<size_t>(std::ceil(double(value.size()) / max_size));
+  for (size_t i = 0; i < num_fragments; ++i) {
+    size_t l = max_size * i;
+    size_t r = max_size * i + max_size;
+    ByteVector curr_fragment(value.begin() + l, r >= value.size() ? value.end() : value.begin() + r);
+    auto id = event_handler_.GetFragmentId(curr_fragment);
+    routing_table_->StoreFragment(id, std::move(curr_fragment));
+    result.push_back(id);
+  }
+
+  return result;
+}
+
+void Host::FindFragment(const FragmentId& id) {
+  routing_table_->FindFragment(id);
+}
+
+void Host::OnFragmentFound(const FragmentId& id, ByteVector&& fragment) {
+  event_handler_.OnFragmentFound(id, std::move(fragment));
+}
+
+void Host::OnFragmentNotFound(const FragmentId& id) {
+  event_handler_.OnFragmentNotFound(id);
 }
 
 void Host::OnIdBanned(const NodeId& peer) {

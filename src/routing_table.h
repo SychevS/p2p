@@ -31,6 +31,8 @@ class RoutingTableEventHandler {
   virtual ~RoutingTableEventHandler() = default;
   virtual void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) = 0;
   virtual bool IsEndpointBanned(const bi::address& addr, uint16_t port) = 0;
+  virtual void OnFragmentFound(const FragmentId& id, ByteVector&& fragment) = 0;
+  virtual void OnFragmentNotFound(const FragmentId& id) = 0;
 };
 
 class RoutingTable : public UdpSocketEventHandler {
@@ -50,6 +52,10 @@ class RoutingTable : public UdpSocketEventHandler {
 
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
+  static constexpr auto GetMaxFragmentSize() { return kMaxFragmentSize; }
+  void StoreFragment(const FragmentId&, ByteVector&&) {}
+  void FindFragment(const FragmentId&) {}
+
   void UpdateTcpPort(const NodeId&, uint16_t port);
 
   static NodeId Distance(const NodeId&, const NodeId&);
@@ -64,7 +70,8 @@ class RoutingTable : public UdpSocketEventHandler {
                         const ByteVector& data) override;
 
  private:
-  static constexpr uint16_t kMaxDatagramSize = 1000;
+  static constexpr uint16_t kMaxDatagramSize = 1280;
+  static constexpr uint16_t kMaxFragmentSize = 1000;
 
   // k should be chosen such that any given k nodes
   // are very unlikely to fail within an hour of each other
