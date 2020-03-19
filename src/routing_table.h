@@ -54,8 +54,8 @@ class RoutingTable : public UdpSocketEventHandler {
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
   static constexpr auto GetMaxFragmentSize() { return kMaxFragmentSize; }
-  void StoreFragment(const FragmentId&, ByteVector&&) {}
-  void FindFragment(const FragmentId&) {}
+  void StoreFragment(const FragmentId&, ByteVector&&);
+  void FindFragment(const FragmentId&);
 
   void UpdateTcpPort(const NodeId&, uint16_t port);
 
@@ -93,8 +93,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
   void HandlePing(const KademliaDatagram&);
   void HandleFindNode(const KademliaDatagram&);
-  void HandleFindFragment(const KademliaDatagram&);
-  void HandleStoreFragment(const KademliaDatagram&);
 
   uint16_t KBucketIndex(const NodeId& id) const noexcept;
 
@@ -166,6 +164,23 @@ class RoutingTable : public UdpSocketEventHandler {
     std::unordered_map<NodeId, uint8_t> ping_sent_;
   };
 
+  class FragmentCollector {
+   public:
+    FragmentCollector(RoutingTable&);
+
+    void FindFragment(const FragmentId&);
+    void StoreFragment(const FragmentId&, ByteVector&&);
+
+    void HandleFindFragment(const KademliaDatagram&);
+    void HandleStoreFragment(const KademliaDatagram&);
+    void HandleFragmentFound(const KademliaDatagram&);
+    void HandleFragmentNotFound(const KademliaDatagram&);
+
+   private:
+    RoutingTable& routing_table_;
+    Database db_;
+  };
+
   const NodeEntrance host_data_;
   UdpSocket<kMaxDatagramSize>::Ptr socket_;
   RoutingTableEventHandler& host_;
@@ -179,11 +194,10 @@ class RoutingTable : public UdpSocketEventHandler {
 
   Pinger pinger_;
   NetExplorer explorer_;
+  FragmentCollector collector_;
 
   std::promise<void> pinger_stopper_;
   std::promise<void> discovery_stopper_;
-
-  Database db_;
 };
 
 inline NodeId RoutingTable::Distance(const NodeId& a, const NodeId& b) {

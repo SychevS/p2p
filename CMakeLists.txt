@@ -72,6 +72,7 @@ add_library(${PROJECT_NAME} STATIC
   src/common.h
   src/common.cc
   src/database.h
+  src/fragment_collector.cc
   src/host.h
   src/host.cc
   src/k_bucket.h
@@ -93,7 +94,8 @@ add_library(${PROJECT_NAME} STATIC
   src/utils/log.cc
   src/utils/localip.h
   src/utils/serialization.h
-  src/utils/serialization.cc)
+  src/utils/serialization.cc
+)
 
 if(MSVC)
   target_sources(${PROJECT_NAME} PRIVATE src/utils/localip_windows.cc)
