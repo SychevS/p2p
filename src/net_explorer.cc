@@ -4,12 +4,19 @@
 
 namespace net {
 
-RoutingTable::NetExplorer::NetExplorer(RoutingTable& rt) : routing_table_(rt) {}
+RoutingTable::NetExplorer::NetExplorer(RoutingTable& rt, bool full_discovery)
+    : routing_table_(rt), full_discovery_(full_discovery) {}
 
 RoutingTable::NetExplorer::~NetExplorer() {
   if (discovery_thread_.joinable()) {
     discovery_thread_.join();
   }
+}
+
+void RoutingTable::NetExplorer::GetKnownNodes(std::vector<NodeEntrance>& result) {
+  Guard g(nodes_mux_);
+  auto& nodes = nodes_.actual.size() ? nodes_.actual : nodes_.updates;
+  result.insert(result.end(), nodes.begin(), nodes.end());
 }
 
 void RoutingTable::NetExplorer::Start(std::future<void>&& stop_condition) {
@@ -22,6 +29,8 @@ void RoutingTable::NetExplorer::DiscoveryRoutine(std::future<void>&& stop_condit
 
   while (true) {
     if (stop_condition.wait_for(kDiscoveryInterval) == std::future_status::ready) break;
+
+    if (full_discovery_) UpdateNodes();
 
     NodeId random_id;
     uint32_t* ptr = random_id.GetPtr();
@@ -86,6 +95,11 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
    auto& closest_nodes = find_node_resp.closest;
    routing_table_.UpdateKBuckets(find_node_resp.node_from);
 
+   if (full_discovery_) {
+     UpdateNodes({find_node_resp.node_from});
+     UpdateNodes(closest_nodes);
+   }
+
    auto it = std::find_if(closest_nodes.begin(), closest_nodes.end(),
                  [&find_node_resp](const auto& n) {
                    return n.id == find_node_resp.target;
@@ -117,5 +131,22 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
 
   auto& bucket = routing_table_.k_buckets_[index];
   routing_table_.pinger_.SendPing(founded_node, bucket);
+}
+
+void RoutingTable::NetExplorer::UpdateNodes() {
+  using namespace std::chrono;
+  static auto last_update = steady_clock::now();
+  auto current_time = steady_clock::now();
+
+  if (duration_cast<seconds>(current_time - last_update) >= kUpdateNodesInterval) {
+    Guard g(nodes_mux_);
+    nodes_.actual = std::move(nodes_.updates);
+    last_update = steady_clock::now();
+  }
+}
+
+void RoutingTable::NetExplorer::UpdateNodes(const std::vector<NodeEntrance>& nodes) {
+  Guard g(nodes_mux_);
+  nodes_.updates.insert(nodes.begin(), nodes.end());
 }
 } // namespace net

@@ -7,6 +7,7 @@
 #include <limits>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <thread>
 #include <vector>
 
@@ -111,21 +112,38 @@ class RoutingTable : public UdpSocketEventHandler {
 
   class NetExplorer {
    public:
-    NetExplorer(RoutingTable&);
+    NetExplorer(RoutingTable&, bool full_discovery);
     ~NetExplorer();
 
     void Start(std::future<void>&& stop_condition);
     void Find(const NodeId&, const std::vector<NodeEntrance>& find_list);
     void CheckFindNodeResponce(const KademliaDatagram&);
+    void GetKnownNodes(std::vector<NodeEntrance>&);
 
    private:
     void DiscoveryRoutine(std::future<void>&&);
+    void UpdateNodes();
+    void UpdateNodes(const std::vector<NodeEntrance>&);
 
     RoutingTable& routing_table_;
+    const bool full_discovery_;
     std::thread discovery_thread_;
 
     Mutex find_node_mux_;
     std::unordered_map<NodeId, std::vector<NodeId>> find_node_sent_;
+
+    static constexpr std::chrono::seconds kUpdateNodesInterval{60 * 10};
+    Mutex nodes_mux_;
+    struct Nodes {
+      struct NodeEqual {
+        bool operator()(const NodeEntrance& l, const NodeEntrance& r) const {
+          return l.id == r.id;
+        }
+      };
+
+      std::unordered_set<NodeEntrance, std::hash<NodeEntrance>, NodeEqual> actual;
+      std::unordered_set<NodeEntrance, std::hash<NodeEntrance>, NodeEqual> updates;
+    } nodes_;
   };
 
   class Pinger {

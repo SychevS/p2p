@@ -15,14 +15,17 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
 
   switch (type) {
     case PingDatagram::type :
+      u.Get(node_from.user_data);
       return std::make_unique<PingDatagram>(node_from);
 
     case PingRespDatagram::type :
+      u.Get(node_from.user_data);
       return std::make_unique<PingRespDatagram>(node_from);
 
     case FindNodeDatagram::type : {
       NodeId target;
       if (!u.Get(reinterpret_cast<uint8_t*>(target.GetPtr()), target.size())) return nullptr;
+      u.Get(node_from.user_data);
       return std::make_unique<FindNodeDatagram>(node_from, target);
     }
 
@@ -37,12 +40,14 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
         if (!u.Get(ent)) return nullptr;
         closest.push_back(ent);
       }
+      u.Get(node_from.user_data);
       return std::make_unique<FindNodeRespDatagram>(node_from, target, std::move(closest));
     }
 
     case FindFragmentDatagram::type : {
       FragmentId id;
       if (!u.Get(reinterpret_cast<uint8_t*>(id.GetPtr()), id.size())) return nullptr;
+      u.Get(node_from.user_data);
       return std::make_unique<FindFragmentDatagram>(node_from, id);
     }
 
@@ -51,6 +56,7 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
       if (!u.Get(reinterpret_cast<uint8_t*>(target.GetPtr()), target.size())) return nullptr;
       ByteVector fragment;
       if (!u.Get(fragment)) return nullptr;
+      u.Get(node_from.user_data);
       return std::make_unique<FragmentFoundDatagram>(node_from, target, std::move(fragment));
     }
 
@@ -65,6 +71,7 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
         if (!u.Get(ent)) return nullptr;
         closest.push_back(ent);
       }
+      u.Get(node_from.user_data);
       return std::make_unique<FragmentNotFoundDatagram>(node_from, target, std::move(closest));
     }
 
@@ -73,6 +80,7 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
       if (!u.Get(reinterpret_cast<uint8_t*>(target.GetPtr()), target.size())) return nullptr;
       ByteVector fragment;
       if (!u.Get(fragment)) return nullptr;
+      u.Get(node_from.user_data);
       return std::make_unique<StoreDatagram>(node_from, target, std::move(fragment));
     }
 
@@ -81,74 +89,83 @@ KademliaDatagram::ReinterpretUdpPacket(const bi::udp::endpoint& from, const Byte
   }
 }
 
-UdpDatagram KademliaDatagram::BaseToUdp(const NodeEntrance& dest, uint8_t type) const noexcept {
+UdpDatagram KademliaDatagram::BaseToUdp(const NodeEntrance& dest, uint8_t type, bool user_data) const noexcept {
   Serializer s;
   s.Put(type);
   node_from.PutId(s);
   s.Put(node_from.tcp_port);
+  if (user_data) {
+    s.Put(node_from.user_data);
+  }
   bi::udp::endpoint to(dest.address, dest.udp_port);
   return UdpDatagram(to, s.GetData());
 }
 
 UdpDatagram FindNodeDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(target.GetPtr()), target.size());
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
 }
 
 UdpDatagram FindNodeRespDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(target.GetPtr()), target.size());
   s.Put(closest.size());
   for (size_t i = 0; i < closest.size(); ++i) {
     s.Put(closest[i]);
   }
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
 }
 
 UdpDatagram FindFragmentDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(target.GetPtr()), target.size());
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
 }
 
 UdpDatagram FragmentFoundDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(target.GetPtr()), target.size());
   s.Put(fragment);
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
 }
 
 UdpDatagram FragmentNotFoundDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(target.GetPtr()), target.size());
   s.Put(closest.size());
   for (size_t i = 0; i < closest.size(); ++i) {
     s.Put(closest[i]);
   }
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
 }
 
 UdpDatagram StoreDatagram::ToUdp(const NodeEntrance& dest) const noexcept {
-  auto base_udp = BaseToUdp(dest, type);
+  auto base_udp = BaseToUdp(dest, type, false);
   Serializer s;
   s.Put(reinterpret_cast<const uint8_t*>(id.GetPtr()), id.size());
   s.Put(fragment);
+  s.Put(node_from.user_data);
   auto& buf = base_udp.Data();
   buf.insert(buf.end(), s.GetData().begin(), s.GetData().end());
   return base_udp;
