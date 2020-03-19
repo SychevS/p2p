@@ -15,6 +15,7 @@ using ByteVector = std::vector<uint8_t>;
 
 using Mutex = std::mutex;
 using Guard = std::lock_guard<Mutex>;
+using UniqueGuard = std::unique_lock<Mutex>;
 
 } // namespace net
 #endif // NET_TYPES_H

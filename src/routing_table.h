@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <future>
 #include <limits>
 #include <list>
@@ -167,6 +168,7 @@ class RoutingTable : public UdpSocketEventHandler {
   class FragmentCollector {
    public:
     FragmentCollector(RoutingTable&);
+    void Stop();
 
     void FindFragment(const FragmentId&);
     void StoreFragment(const FragmentId&, ByteVector&&);
@@ -177,8 +179,25 @@ class RoutingTable : public UdpSocketEventHandler {
     void HandleFragmentNotFound(const KademliaDatagram&);
 
    private:
+    void AddToRequired(const FragmentId&);
+    bool RemoveFromRequired(const FragmentId&);
+    void LookupRoutine();
+    void Find(const FragmentId&);
+    bool ExistsInDb(const FragmentId&, ByteVector&);
+    void StartFindInNetwork(const FragmentId&);
+
     RoutingTable& routing_table_;
     Database db_;
+
+    std::condition_variable cv_;
+    std::atomic<bool> stop_flag_ = false;
+    std::thread lookup_thread_;
+
+    Mutex mux_;
+    std::unordered_set<FragmentId> required_;
+
+    Mutex n_mux_;
+    std::unordered_set<FragmentId> net_required_;
   };
 
   const NodeEntrance host_data_;

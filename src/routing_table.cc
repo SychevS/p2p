@@ -35,6 +35,7 @@ RoutingTable::~RoutingTable() {
 void RoutingTable::Stop() {
   pinger_stopper_.set_value();
   discovery_stopper_.set_value();
+  collector_.Stop();
 
   socket_->Close();
 }
