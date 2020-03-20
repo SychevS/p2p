@@ -48,8 +48,13 @@ void RoutingTable::FragmentCollector::Find(const FragmentId& id) {
   StartFindInNetwork(id);
 }
 
-bool RoutingTable::FragmentCollector::ExistsInDb(const FragmentId&, ByteVector&) {
-  return false;
+bool RoutingTable::FragmentCollector::ExistsInDb(const FragmentId& id, ByteVector& fragment) {
+  try {
+    db_.Read(reinterpret_cast<const uint8_t*>(id.GetPtr()), id.size(), fragment);
+  } catch (...) {
+    return false;
+  }
+  return true;
 }
 
 void RoutingTable::FragmentCollector::StartFindInNetwork(const FragmentId&) {
@@ -61,17 +66,14 @@ void RoutingTable::FragmentCollector::HandleFindFragment(const KademliaDatagram&
   ByteVector fragment;
   routing_table_.UpdateKBuckets(d.node_from);
 
-  try {
-    db_.Read(reinterpret_cast<const uint8_t*>(find_fragment.target.GetPtr()),
-             find_fragment.target.size(), fragment);
-  } catch (...) {
-    FragmentNotFoundDatagram answer(routing_table_.host_data_, find_fragment.target,
-                                    routing_table_.NearestNodes(find_fragment.target));
+  if (ExistsInDb(find_fragment.target, fragment)) {
+    FragmentFoundDatagram answer(routing_table_.host_data_, find_fragment.target, std::move(fragment));
     routing_table_.socket_->Send(answer.ToUdp(d.node_from));
     return;
   }
 
-  FragmentFoundDatagram answer(routing_table_.host_data_, find_fragment.target, std::move(fragment));
+  FragmentNotFoundDatagram answer(routing_table_.host_data_, find_fragment.target,
+                                  routing_table_.NearestNodes(find_fragment.target));
   routing_table_.socket_->Send(answer.ToUdp(d.node_from));
 }
 
