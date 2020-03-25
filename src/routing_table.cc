@@ -157,6 +157,8 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
     default :
       break;
   }
+
+  UpdateKBuckets(packet->node_from);
 }
 
 bool RoutingTable::CheckEndpoint(const KademliaDatagram& d) {
@@ -175,7 +177,6 @@ bool RoutingTable::CheckEndpoint(const KademliaDatagram& d) {
 void RoutingTable::HandlePing(const KademliaDatagram& d) {
   PingRespDatagram answer(host_data_);
   socket_->Send(answer.ToUdp(d.node_from));
-  UpdateKBuckets(d.node_from);
 }
 
 void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
@@ -184,7 +185,6 @@ void RoutingTable::HandleFindNode(const KademliaDatagram& d) {
 
   FindNodeRespDatagram answer(host_data_, find_node.target, std::move(requested_nodes));
   socket_->Send(answer.ToUdp(d.node_from));
-  UpdateKBuckets(d.node_from);
 }
 
 void RoutingTable::UpdateKBuckets(const std::vector<NodeEntrance>& nodes) {

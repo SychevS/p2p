@@ -88,7 +88,6 @@ void RoutingTable::FragmentCollector::StartLookupTimer(const FragmentId& id) {
 void RoutingTable::FragmentCollector::HandleFindFragment(const KademliaDatagram& d) {
   auto& find_fragment = dynamic_cast<const FindFragmentDatagram&>(d);
   ByteVector fragment;
-  routing_table_.UpdateKBuckets(d.node_from);
 
   if (ExistsInDb(find_fragment.target, fragment)) {
     FragmentFoundDatagram answer(routing_table_.host_data_, find_fragment.target, std::move(fragment));

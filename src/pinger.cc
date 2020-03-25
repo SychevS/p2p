@@ -104,16 +104,7 @@ void RoutingTable::Pinger::SendPing(const NodeEntrance& target, KBucket& bucket,
 }
 
 void RoutingTable::Pinger::CheckPingResponce(const KademliaDatagram& d) {
-  {
-   Guard g(ping_mux_);
-   auto it = ping_sent_.find(d.node_from.id);
-   if (it != ping_sent_.end()) {
-     ping_sent_.erase(it);
-   } else {
-     return;
-   }
-  }
-
-  routing_table_.UpdateKBuckets(d.node_from);
+  Guard g(ping_mux_);
+  ping_sent_.erase(d.node_from.id);
 }
 } // namespace net

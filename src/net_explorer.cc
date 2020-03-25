@@ -93,7 +93,6 @@ void RoutingTable::NetExplorer::CheckFindNodeResponce(const KademliaDatagram& d)
    }
 
    auto& closest_nodes = find_node_resp.closest;
-   routing_table_.UpdateKBuckets(find_node_resp.node_from);
 
    if (full_discovery_) {
      UpdateNodes({find_node_resp.node_from});
