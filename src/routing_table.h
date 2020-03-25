@@ -109,6 +109,9 @@ class RoutingTable : public UdpSocketEventHandler {
   // Or total_nodes_ nodes if total_nodes_ < k.
   std::vector<NodeEntrance> NearestNodes(const NodeId&);
 
+  template<class KademliaDatagram>
+  void SendToSocket(KademliaDatagram&&, const std::vector<NodeEntrance>& dest_nodes);
+
   class NetExplorer {
    public:
     NetExplorer(RoutingTable&, bool full_discovery);
@@ -188,7 +191,7 @@ class RoutingTable : public UdpSocketEventHandler {
     bool ExistsInDb(const FragmentId&, ByteVector&);
     void StartFindInNetwork(const FragmentId&);
     void StartLookupTimer(const FragmentId&);
-    void SendToSocket(FindFragmentDatagram&&, const std::vector<NodeEntrance>&);
+    void StoreInDb(const FragmentId&, const ByteVector&);
 
     RoutingTable& routing_table_;
     Database db_;
@@ -236,6 +239,13 @@ inline uint16_t RoutingTable::KBucketIndex(const NodeId& target, const NodeId& i
 
   auto clz = Distance(target, id).GetCLZ();
   return clz == max_id_bits ? kIvalidIndex : clz;
+}
+
+template<class KademliaDatagram>
+void RoutingTable::SendToSocket(KademliaDatagram&& d, const std::vector<NodeEntrance>& nodes) {
+  for (auto& dest : nodes) {
+    socket_->Send(d.ToUdp(dest));
+  }
 }
 
 } // namespace net

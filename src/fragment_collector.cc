@@ -35,8 +35,25 @@ void RoutingTable::FragmentCollector::FindFragment(const FragmentId& id) {
   cv_.notify_one();
 }
 
-void RoutingTable::FragmentCollector::StoreFragment(const FragmentId&, ByteVector&&) {
+void RoutingTable::FragmentCollector::StoreFragment(const FragmentId& id, ByteVector&& fragment) {
+  auto nearest = routing_table_.NearestNodes(id);
 
+  if (nearest.size() < RoutingTable::k) {
+    StoreInDb(id, fragment);
+  } else {
+    auto my_index = RoutingTable::KBucketIndex(id, routing_table_.host_data_.id);
+
+    for (auto& node : nearest) {
+      if (my_index > RoutingTable::KBucketIndex(id, node.id)) {
+        nearest.resize(nearest.size() - 1);
+        StoreInDb(id, fragment);
+        break;
+      }
+    }
+  }
+
+  routing_table_.SendToSocket(StoreDatagram(routing_table_.host_data_, id, std::move(fragment)),
+                              nearest);
 }
 
 void RoutingTable::FragmentCollector::Find(const FragmentId& id) {
@@ -59,16 +76,9 @@ bool RoutingTable::FragmentCollector::ExistsInDb(const FragmentId& id, ByteVecto
 
 void RoutingTable::FragmentCollector::StartFindInNetwork(const FragmentId& id) {
   AddToRequiredNetwork(id);
-  SendToSocket(FindFragmentDatagram(routing_table_.host_data_, id),
-               routing_table_.NearestNodes(id));
+  routing_table_.SendToSocket(FindFragmentDatagram(routing_table_.host_data_, id),
+                              routing_table_.NearestNodes(id));
   StartLookupTimer(id);
-}
-
-void RoutingTable::FragmentCollector::SendToSocket(FindFragmentDatagram&& datagram,
-                                                   const std::vector<NodeEntrance>& targets) {
-  for (auto& dest : targets) {
-    routing_table_.socket_->Send(datagram.ToUdp(dest));
-  }
 }
 
 void RoutingTable::FragmentCollector::StartLookupTimer(const FragmentId& id) {
@@ -102,8 +112,11 @@ void RoutingTable::FragmentCollector::HandleFindFragment(const KademliaDatagram&
 
 void RoutingTable::FragmentCollector::HandleStoreFragment(const KademliaDatagram& d) {
   auto& store_datagram = dynamic_cast<const StoreDatagram&>(d);
-  db_.Write(reinterpret_cast<const uint8_t*>(store_datagram.id.GetPtr()),
-            store_datagram.id.size(), store_datagram.fragment);
+  StoreInDb(store_datagram.id, store_datagram.fragment);
+}
+
+void RoutingTable::FragmentCollector::StoreInDb(const FragmentId& id, const ByteVector& fragment) {
+  db_.Write(reinterpret_cast<const uint8_t*>(id.GetPtr()), id.size(), fragment);
 }
 
 void RoutingTable::FragmentCollector::HandleFragmentFound(KademliaDatagram& d) {
@@ -131,8 +144,8 @@ void RoutingTable::FragmentCollector::HandleFragmentNotFound(const KademliaDatag
    }
   }
 
-  SendToSocket(FindFragmentDatagram(routing_table_.host_data_, fragment_not_found_datagram.target),
-               closest);
+  routing_table_.SendToSocket(FindFragmentDatagram(routing_table_.host_data_, fragment_not_found_datagram.target),
+                              closest);
 }
 
 void RoutingTable::FragmentCollector::AddToRequired(const FragmentId& id) {
