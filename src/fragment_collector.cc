@@ -17,7 +17,7 @@ void RoutingTable::FragmentCollector::Stop() {
 void RoutingTable::FragmentCollector::LookupRoutine() {
   while (!stop_flag_) {
     UniqueGuard g(mux_);
-    cv_.wait_for(g, std::chrono::seconds(1));
+    cv_.wait_for(g, std::chrono::seconds(1), [this] { return !required_.empty(); });
 
     while (!required_.empty()) {
       auto id = *required_.begin();
@@ -57,8 +57,32 @@ bool RoutingTable::FragmentCollector::ExistsInDb(const FragmentId& id, ByteVecto
   return true;
 }
 
-void RoutingTable::FragmentCollector::StartFindInNetwork(const FragmentId&) {
+void RoutingTable::FragmentCollector::StartFindInNetwork(const FragmentId& id) {
+  AddToRequiredNetwork(id);
+  SendToSocket(FindFragmentDatagram(routing_table_.host_data_, id),
+               routing_table_.NearestNodes(id));
+  StartLookupTimer(id);
+}
 
+void RoutingTable::FragmentCollector::SendToSocket(FindFragmentDatagram&& datagram,
+                                                   const std::vector<NodeEntrance>& targets) {
+  for (auto& dest : targets) {
+    routing_table_.socket_->Send(datagram.ToUdp(dest));
+  }
+}
+
+void RoutingTable::FragmentCollector::StartLookupTimer(const FragmentId& id) {
+  auto timer = std::make_shared<DeadlineTimer>(
+                   routing_table_.io_,
+                   boost::posix_time::seconds(kDiscoveryExpirationSeconds.count()));
+
+  auto callback = [this, timer, id](const boost::system::error_code&) {
+    if (RemoveFromRequiredNetwork(id)) {
+      routing_table_.host_.OnFragmentNotFound(id);
+    }
+  };
+
+  timer->async_wait(std::move(callback));
 }
 
 void RoutingTable::FragmentCollector::HandleFindFragment(const KademliaDatagram& d) {
@@ -83,12 +107,33 @@ void RoutingTable::FragmentCollector::HandleStoreFragment(const KademliaDatagram
             store_datagram.id.size(), store_datagram.fragment);
 }
 
-void RoutingTable::FragmentCollector::HandleFragmentFound(const KademliaDatagram&) {
-
+void RoutingTable::FragmentCollector::HandleFragmentFound(KademliaDatagram& d) {
+  auto& fragment_found_datagram = dynamic_cast<FragmentFoundDatagram&>(d);
+  if (RemoveFromRequiredNetwork(fragment_found_datagram.target)) {
+    routing_table_.host_.OnFragmentFound(fragment_found_datagram.target,
+                                         std::move(fragment_found_datagram.fragment));
+  }
 }
 
-void RoutingTable::FragmentCollector::HandleFragmentNotFound(const KademliaDatagram&) {
+void RoutingTable::FragmentCollector::HandleFragmentNotFound(const KademliaDatagram& d) {
+  auto fragment_not_found_datagram = dynamic_cast<const FragmentNotFoundDatagram&>(d);
+  std::vector<NodeEntrance> closest;
 
+  {
+   Guard g(n_mux_);
+   auto it = net_required_.find(fragment_not_found_datagram.target);
+   if (it == net_required_.end()) return;
+
+   it->second.insert(fragment_not_found_datagram.node_from.id);
+
+   for (auto& node : fragment_not_found_datagram.closest) {
+     if (it->second.find(node.id) != it->second.end()) continue;
+     closest.push_back(node);
+   }
+  }
+
+  SendToSocket(FindFragmentDatagram(routing_table_.host_data_, fragment_not_found_datagram.target),
+               closest);
 }
 
 void RoutingTable::FragmentCollector::AddToRequired(const FragmentId& id) {
@@ -99,6 +144,16 @@ void RoutingTable::FragmentCollector::AddToRequired(const FragmentId& id) {
 bool RoutingTable::FragmentCollector::RemoveFromRequired(const FragmentId& id) {
   Guard g(mux_);
   return required_.erase(id) != 0;
+}
+
+void RoutingTable::FragmentCollector::AddToRequiredNetwork(const FragmentId& id) {
+  Guard g(n_mux_);
+  net_required_[id];
+}
+
+bool RoutingTable::FragmentCollector::RemoveFromRequiredNetwork(const FragmentId& id) {
+  Guard g(n_mux_);
+  return net_required_.erase(id) != 0;
 }
 
 } // namespace net

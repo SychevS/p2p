@@ -72,8 +72,8 @@ class RoutingTable : public UdpSocketEventHandler {
                         const ByteVector& data) override;
 
  private:
-  static constexpr uint16_t kMaxDatagramSize = 1280;
-  static constexpr uint16_t kMaxFragmentSize = 1000;
+  static constexpr uint16_t kMaxDatagramSize = 1472; // 1500(ethernet payload) - 20(ip header) - 8(udp header)
+  static constexpr uint16_t kMaxFragmentSize = 1350;
 
   // k should be chosen such that any given k nodes
   // are very unlikely to fail within an hour of each other
@@ -175,16 +175,20 @@ class RoutingTable : public UdpSocketEventHandler {
 
     void HandleFindFragment(const KademliaDatagram&);
     void HandleStoreFragment(const KademliaDatagram&);
-    void HandleFragmentFound(const KademliaDatagram&);
+    void HandleFragmentFound(KademliaDatagram&);
     void HandleFragmentNotFound(const KademliaDatagram&);
 
    private:
     void AddToRequired(const FragmentId&);
     bool RemoveFromRequired(const FragmentId&);
+    void AddToRequiredNetwork(const FragmentId&);
+    bool RemoveFromRequiredNetwork(const FragmentId&);
     void LookupRoutine();
     void Find(const FragmentId&);
     bool ExistsInDb(const FragmentId&, ByteVector&);
     void StartFindInNetwork(const FragmentId&);
+    void StartLookupTimer(const FragmentId&);
+    void SendToSocket(FindFragmentDatagram&&, const std::vector<NodeEntrance>&);
 
     RoutingTable& routing_table_;
     Database db_;
@@ -197,7 +201,7 @@ class RoutingTable : public UdpSocketEventHandler {
     std::unordered_set<FragmentId> required_;
 
     Mutex n_mux_;
-    std::unordered_set<FragmentId> net_required_;
+    std::unordered_map<FragmentId, std::unordered_set<NodeId>> net_required_;
   };
 
   const NodeEntrance host_data_;
