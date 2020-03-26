@@ -174,7 +174,7 @@ class RoutingTable : public UdpSocketEventHandler {
     void Stop();
 
     void FindFragment(const FragmentId&);
-    void StoreFragment(const FragmentId&, ByteVector&&);
+    bool StoreFragment(const FragmentId&, ByteVector&&, bool remove_own = false);
 
     void HandleFindFragment(const KademliaDatagram&);
     void HandleStoreFragment(const KademliaDatagram&);
@@ -192,6 +192,10 @@ class RoutingTable : public UdpSocketEventHandler {
     void StartFindInNetwork(const FragmentId&);
     void StartLookupTimer(const FragmentId&);
     void StoreInDb(const FragmentId&, const ByteVector&);
+    void RemoveFromDb(const FragmentId&);
+    void ReplicationRoutine();
+
+    static constexpr std::chrono::seconds kReplicationInterval{60 * 60};
 
     RoutingTable& routing_table_;
     Database db_;
@@ -199,12 +203,17 @@ class RoutingTable : public UdpSocketEventHandler {
     std::condition_variable cv_;
     std::atomic<bool> stop_flag_ = false;
     std::thread lookup_thread_;
+    std::thread replication_thread_;
+    std::condition_variable cv_rep_;
 
     Mutex mux_;
     std::unordered_set<FragmentId> required_;
 
     Mutex n_mux_;
     std::unordered_map<FragmentId, std::unordered_set<NodeId>> net_required_;
+
+    Mutex s_mux_;
+    std::unordered_map<FragmentId, std::chrono::steady_clock::time_point> stored_fragments_;
   };
 
   const NodeEntrance host_data_;

@@ -80,6 +80,13 @@ class DbIterator {
     return u.Get(key);
   }
 
+  bool Key(uint8_t* key, size_t key_size) {
+    if (!IsValid()) return false;
+    auto key_slice = it_->key();
+    Unserializer u(key_slice.data(), key_slice.size());
+    return u.Get(key, key_size);
+  }
+
   template<class V>
   bool Value(V& value) {
     if (!IsValid()) return false;
@@ -178,7 +185,7 @@ class Database {
     Write(batch);
   }
 
-  void Remove(uint8_t* key, size_t key_size) {
+  void Remove(const uint8_t* key, size_t key_size) {
     WriteBatch batch;
     batch.Remove(key, key_size);
     Write(batch);

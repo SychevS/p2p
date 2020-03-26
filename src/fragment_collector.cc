@@ -5,12 +5,19 @@ namespace net {
 RoutingTable::FragmentCollector::FragmentCollector(RoutingTable& rt)
     : routing_table_(rt), db_(kDbPath) {
   lookup_thread_ = std::thread(&RoutingTable::FragmentCollector::LookupRoutine, this);
+  replication_thread_ = std::thread(&RoutingTable::FragmentCollector::ReplicationRoutine, this);
 }
 
 void RoutingTable::FragmentCollector::Stop() {
   stop_flag_ = true;
+  cv_rep_.notify_one();
+
   if (lookup_thread_.joinable()) {
     lookup_thread_.join();
+  }
+
+  if (replication_thread_.joinable()) {
+    replication_thread_.join();
   }
 }
 
@@ -30,30 +37,71 @@ void RoutingTable::FragmentCollector::LookupRoutine() {
   }
 }
 
+void RoutingTable::FragmentCollector::ReplicationRoutine() {
+  for (auto it = db_.begin(); it.IsValid() && !stop_flag_; ++it) {
+    FragmentId id;
+    if (it.Key(reinterpret_cast<uint8_t*>(id.GetPtr()), id.size())) {
+      Guard g(s_mux_);
+      stored_fragments_[id] = std::chrono::steady_clock::now();
+    }
+  }
+
+  while (!stop_flag_) {
+    UniqueGuard g(s_mux_);
+    cv_rep_.wait_for(g, kReplicationInterval);
+    auto stored_fragments_copy = stored_fragments_; // @TODO change it
+    g.unlock();
+
+    auto now = std::chrono::steady_clock::now();
+    for (auto& id_and_time : stored_fragments_copy) {
+      if (stop_flag_) break;
+
+      if (now - id_and_time.second < kReplicationInterval) {
+        continue;
+      }
+
+      ByteVector fragment;
+      if (!ExistsInDb(id_and_time.first, fragment) || !StoreFragment(id_and_time.first, std::move(fragment), true)) {
+        g.lock();
+        stored_fragments_.erase(id_and_time.first);
+        g.unlock();
+      }
+    }
+  }
+}
+
 void RoutingTable::FragmentCollector::FindFragment(const FragmentId& id) {
   AddToRequired(id);
   cv_.notify_one();
 }
 
-void RoutingTable::FragmentCollector::StoreFragment(const FragmentId& id, ByteVector&& fragment) {
+bool RoutingTable::FragmentCollector::StoreFragment(const FragmentId& id, ByteVector&& fragment, bool remove_own) {
   auto nearest = routing_table_.NearestNodes(id);
+  bool keep_in_own_db = false;
 
   if (nearest.size() < RoutingTable::k) {
-    StoreInDb(id, fragment);
+    if (!remove_own) StoreInDb(id, fragment);
+    keep_in_own_db = true;
   } else {
     auto my_index = RoutingTable::KBucketIndex(id, routing_table_.host_data_.id);
 
     for (auto& node : nearest) {
       if (my_index > RoutingTable::KBucketIndex(id, node.id)) {
         nearest.resize(nearest.size() - 1);
-        StoreInDb(id, fragment);
+        if (!remove_own) StoreInDb(id, fragment);
+        keep_in_own_db = true;
         break;
       }
     }
   }
 
+  if (remove_own && !keep_in_own_db) {
+    RemoveFromDb(id);
+  }
+
   routing_table_.SendToSocket(StoreDatagram(routing_table_.host_data_, id, std::move(fragment)),
                               nearest);
+  return keep_in_own_db;
 }
 
 void RoutingTable::FragmentCollector::Find(const FragmentId& id) {
@@ -117,6 +165,13 @@ void RoutingTable::FragmentCollector::HandleStoreFragment(const KademliaDatagram
 
 void RoutingTable::FragmentCollector::StoreInDb(const FragmentId& id, const ByteVector& fragment) {
   db_.Write(reinterpret_cast<const uint8_t*>(id.GetPtr()), id.size(), fragment);
+
+  Guard g(s_mux_);
+  stored_fragments_[id] = std::chrono::steady_clock::now();
+}
+
+void RoutingTable::FragmentCollector::RemoveFromDb(const FragmentId& id) {
+  db_.Remove(reinterpret_cast<const uint8_t*>(id.GetPtr()), id.size());
 }
 
 void RoutingTable::FragmentCollector::HandleFragmentFound(KademliaDatagram& d) {
