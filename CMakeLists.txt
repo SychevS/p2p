@@ -61,7 +61,7 @@ if(NOT APPLE)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
 
-find_package(Boost 1.66 REQUIRED COMPONENTS system)
+find_package(Boost 1.66 REQUIRED COMPONENTS system date_time regex)
 find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
@@ -106,7 +106,9 @@ endif()
 target_include_directories(${PROJECT_NAME} INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(${PROJECT_NAME} Boost::system bitcoin_utils easylogging libminiupnpc-static leveldb
+target_include_directories(${PROJECT_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
+
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} bitcoin_utils easylogging libminiupnpc-static leveldb
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
