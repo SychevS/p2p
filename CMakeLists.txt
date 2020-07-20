@@ -61,7 +61,7 @@ if(NOT APPLE)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
 
-find_package(Boost 1.66 REQUIRED COMPONENTS system date_time regex)
+find_package(Boost 1.66 REQUIRED COMPONENTS system)
 find_package(Threads)
 
 add_library(${PROJECT_NAME} STATIC
@@ -117,10 +117,12 @@ else()
   target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 endif()
 
-set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER src/host.h)
+set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER include/p2p_network.h)
 
-install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static
+install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static leveldb
         LIBRARY
+          DESTINATION lib
+        ARCHIVE
           DESTINATION lib
         PUBLIC_HEADER
           DESTINATION include)

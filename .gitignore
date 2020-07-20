@@ -47,6 +47,7 @@ build
 .*.swp
 
 compile_commands.json
+.clangd
 
 # Visual Studio generated files
 *.ib_pdb_index
