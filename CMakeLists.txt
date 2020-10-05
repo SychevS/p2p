@@ -81,6 +81,7 @@ add_library(${PROJECT_NAME} STATIC
   src/net_explorer.cc
   src/network.h
   src/network.cc
+  src/p2p_network.cc
   src/pinger.cc
   src/routing_table.h
   src/routing_table.cc
