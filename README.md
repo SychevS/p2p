@@ -3,7 +3,10 @@ Kademlia based p2p network.
 
 ### Installation
 
-P2P requires [boost](https://www.boost.org/) 1.68+ to compile.
+P2P requires to compile:
+ - [boost](https://www.boost.org/) 1.68+
+ - [cmake](https://cmake.org/) 3.13+
+ - compiler with C++17 support
 
 ```sh
 $ git clone https://github.com/SychevS/p2p.git
