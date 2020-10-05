@@ -11,13 +11,13 @@
 #pragma warning(push, 0)
 #endif
 
-#include <arith_uint256.h>
-#include <base58.h>
+#include "third-party/base58.h"
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
+#include "../include/p2p_network.h"
 #include "types.h"
 #include "utils/serialization.h"
 
@@ -34,8 +34,6 @@ constexpr const char* kDbPath = "p2p_db";
 namespace ba = boost::asio;
 namespace bi = ba::ip;
 
-using NodeId = arith_uint256;
-using FragmentId = NodeId;
 using DeadlineTimer = ba::deadline_timer;
 
 struct NodeEntrance {

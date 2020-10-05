@@ -6,7 +6,7 @@
 
 namespace net {
 
-Host::Host(const Config& config, HostEventHandler& event_handler)
+Host::Host(const Config& config, EventHandler& event_handler)
     : io_(2),
       acceptor_(io_),
       event_handler_(event_handler),

@@ -16,23 +16,9 @@
 
 namespace net {
 
-// Host's owner must implement this interface
-class HostEventHandler {
- public:
-  virtual ~HostEventHandler() = default;
-  virtual void OnMessageReceived(const NodeId& from, ByteVector&& message) = 0;
-  virtual void OnNodeDiscovered(const NodeId&) = 0;
-  virtual void OnNodeRemoved(const NodeId&) = 0;
-
-  virtual void OnFragmentFound(const FragmentId&, ByteVector&& value) = 0;
-  virtual void OnFragmentNotFound(const FragmentId& id) = 0;
-
-  virtual FragmentId GetFragmentId(const ByteVector& fragment) = 0;
-};
-
 class Host : public RoutingTableEventHandler, public BanManOwner, public ConnectionOwner {
  public:
-  Host(const Config&, HostEventHandler&);
+  Host(const Config&, EventHandler&);
   ~Host();
 
   void Run();
@@ -99,7 +85,7 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
 
   ba::io_context io_;
   bi::tcp::acceptor acceptor_;
-  HostEventHandler& event_handler_;
+  EventHandler& event_handler_;
   NodeId my_id_;
   std::shared_ptr<RoutingTable> routing_table_;
 

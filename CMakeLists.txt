@@ -86,6 +86,8 @@ add_library(${PROJECT_NAME} STATIC
   src/routing_table.cc
   src/types.h
   src/udp.h
+  src/third-party/base58.h
+  src/third-party/base58.cc
   src/third-party/sha1.h
   src/third-party/sha1.cc
   src/third-party/UPnP.h
@@ -108,7 +110,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} bitcoin_utils easylogging libminiupnpc-static leveldb
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} easylogging libminiupnpc-static leveldb
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
@@ -117,12 +119,5 @@ else()
   target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 endif()
 
-set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER include/p2p_network.h)
-
-install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static leveldb
-        LIBRARY
-          DESTINATION lib
-        ARCHIVE
-          DESTINATION lib
-        PUBLIC_HEADER
-          DESTINATION include)
+install(TARGETS ${PROJECT_NAME} easylogging libminiupnpc-static leveldb ARCHIVE DESTINATION lib)
+install(FILES include/p2p_network.h include/arith_uint256.h DESTINATION include)
