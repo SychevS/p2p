@@ -82,7 +82,7 @@ class RoutingTable : public UdpSocketEventHandler {
   // if kBroadcastReplication == k, topology based broadcast becomes flooding;
   // if it equals to 1, it takes logN time to spread a message through network
   // but whole subtrees may not receive the message
-  static constexpr uint8_t kBroadcastReplication = 3;
+  static constexpr uint8_t kBroadcastReplication = 5;
 
   static constexpr uint8_t kMaxPingsBeforeRemove = 3;
   static constexpr std::chrono::seconds kPingExpirationSeconds{8};
