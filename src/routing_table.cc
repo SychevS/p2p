@@ -19,8 +19,7 @@ RoutingTable::RoutingTable(ba::io_context& io,
       kBucketsNum(static_cast<uint16_t>(host_data_.id.size() * 8)), // num of bits in NodeId
       k_buckets_(new KBucket[kBucketsNum]),
       pinger_(*this),
-      explorer_(*this, Network::Instance().GetConfig().full_net_discovery),
-      collector_(*this) {
+      explorer_(*this, Network::Instance().GetConfig().full_net_discovery) {
   socket_->Open();
 
   pinger_.Start(pinger_stopper_.get_future());
@@ -35,7 +34,6 @@ RoutingTable::~RoutingTable() {
 void RoutingTable::Stop() {
   pinger_stopper_.set_value();
   discovery_stopper_.set_value();
-  collector_.Stop();
 
   socket_->Close();
 }
@@ -110,14 +108,6 @@ void RoutingTable::UpdateTcpPort(const NodeId& id, uint16_t port) {
   }
 }
 
-void RoutingTable::FindFragment(const FragmentId& id) {
-  collector_.FindFragment(id);
-}
-
-void RoutingTable::StoreFragment(const FragmentId& id, ByteVector&& fragment) {
-  collector_.StoreFragment(id, std::move(fragment));
-}
-
 void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVector& data) {
   if (host_.IsEndpointBanned(from.address(), from.port())) return;
 
@@ -141,18 +131,6 @@ void RoutingTable::OnPacketReceived(const bi::udp::endpoint& from, const ByteVec
       break;
     case FindNodeRespDatagram::type :
       explorer_.CheckFindNodeResponce(*packet);
-      break;
-    case FindFragmentDatagram::type :
-      collector_.HandleFindFragment(*packet);
-      break;
-    case FragmentFoundDatagram::type :
-      collector_.HandleFragmentFound(*packet);
-      break;
-    case FragmentNotFoundDatagram::type :
-      collector_.HandleFragmentNotFound(*packet);
-      break;
-    case StoreDatagram::type :
-      collector_.HandleStoreFragment(*packet);
       break;
     default :
       break;

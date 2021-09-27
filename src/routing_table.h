@@ -13,7 +13,6 @@
 #include <vector>
 
 #include "common.h"
-#include "database.h"
 #include "k_bucket.h"
 #include "kademlia_datagram.h"
 #include "udp.h"
@@ -33,8 +32,6 @@ class RoutingTableEventHandler {
   virtual ~RoutingTableEventHandler() = default;
   virtual void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) = 0;
   virtual bool IsEndpointBanned(const bi::address& addr, uint16_t port) = 0;
-  virtual void OnFragmentFound(const FragmentId& id, ByteVector&& fragment) = 0;
-  virtual void OnFragmentNotFound(const FragmentId& id) = 0;
 };
 
 class RoutingTable : public UdpSocketEventHandler {
@@ -54,10 +51,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
   std::vector<NodeEntrance> GetBroadcastList(const NodeId&);
 
-  static constexpr auto GetMaxFragmentSize() { return kMaxFragmentSize; }
-  void StoreFragment(const FragmentId&, ByteVector&&);
-  void FindFragment(const FragmentId&);
-
   void UpdateTcpPort(const NodeId&, uint16_t port);
 
   static NodeId Distance(const NodeId&, const NodeId&);
@@ -73,7 +66,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
  private:
   static constexpr uint16_t kMaxDatagramSize = 1472; // 1500(ethernet payload) - 20(ip header) - 8(udp header)
-  static constexpr uint16_t kMaxFragmentSize = 1350;
 
   // k should be chosen such that any given k nodes
   // are very unlikely to fail within an hour of each other
@@ -168,54 +160,6 @@ class RoutingTable : public UdpSocketEventHandler {
     std::unordered_map<NodeId, uint8_t> ping_sent_;
   };
 
-  class FragmentCollector {
-   public:
-    FragmentCollector(RoutingTable&);
-    void Stop();
-
-    void FindFragment(const FragmentId&);
-    bool StoreFragment(const FragmentId&, ByteVector&&, bool remove_own = false);
-
-    void HandleFindFragment(const KademliaDatagram&);
-    void HandleStoreFragment(const KademliaDatagram&);
-    void HandleFragmentFound(KademliaDatagram&);
-    void HandleFragmentNotFound(const KademliaDatagram&);
-
-   private:
-    void AddToRequired(const FragmentId&);
-    bool RemoveFromRequired(const FragmentId&);
-    void AddToRequiredNetwork(const FragmentId&);
-    bool RemoveFromRequiredNetwork(const FragmentId&);
-    void LookupRoutine();
-    void Find(const FragmentId&);
-    bool ExistsInDb(const FragmentId&, ByteVector&);
-    void StartFindInNetwork(const FragmentId&);
-    void StartLookupTimer(const FragmentId&);
-    void StoreInDb(const FragmentId&, const ByteVector&);
-    void RemoveFromDb(const FragmentId&);
-    void ReplicationRoutine();
-
-    static constexpr std::chrono::seconds kReplicationInterval{60 * 60};
-
-    RoutingTable& routing_table_;
-    Database db_;
-
-    std::condition_variable cv_;
-    std::atomic<bool> stop_flag_ = false;
-    std::thread lookup_thread_;
-    std::thread replication_thread_;
-    std::condition_variable cv_rep_;
-
-    Mutex mux_;
-    std::unordered_set<FragmentId> required_;
-
-    Mutex n_mux_;
-    std::unordered_map<FragmentId, std::unordered_set<NodeId>> net_required_;
-
-    Mutex s_mux_;
-    std::unordered_map<FragmentId, std::chrono::steady_clock::time_point> stored_fragments_;
-  };
-
   const NodeEntrance host_data_;
   UdpSocket<kMaxDatagramSize>::Ptr socket_;
   RoutingTableEventHandler& host_;
@@ -229,7 +173,6 @@ class RoutingTable : public UdpSocketEventHandler {
 
   Pinger pinger_;
   NetExplorer explorer_;
-  FragmentCollector collector_;
 
   std::promise<void> pinger_stopper_;
   std::promise<void> discovery_stopper_;

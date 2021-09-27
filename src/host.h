@@ -23,11 +23,6 @@ class HostEventHandler {
   virtual void OnMessageReceived(const NodeId& from, ByteVector&& message) = 0;
   virtual void OnNodeDiscovered(const NodeId&) = 0;
   virtual void OnNodeRemoved(const NodeId&) = 0;
-
-  virtual void OnFragmentFound(const FragmentId&, ByteVector&& value) = 0;
-  virtual void OnFragmentNotFound(const FragmentId& id) = 0;
-
-  virtual FragmentId GetFragmentId(const ByteVector& fragment) = 0;
 };
 
 class Host : public RoutingTableEventHandler, public BanManOwner, public ConnectionOwner {
@@ -49,15 +44,10 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
   void ClearBanList();
   void GetBanList(std::set<BanEntry>&) const;
 
-  std::vector<FragmentId> StoreValue(ByteVector&& value);
-  void FindFragment(const FragmentId&);
-
  protected:
   // RoutingTableEventHandler
   void HandleRoutTableEvent(const NodeEntrance&, RoutingTableEventType) override;
   bool IsEndpointBanned(const bi::address& addr, uint16_t port) override;
-  void OnFragmentFound(const FragmentId&, ByteVector&&) override;
-  void OnFragmentNotFound(const FragmentId&) override;
 
   // BanManOwner
   void OnIdBanned(const NodeId&) override;

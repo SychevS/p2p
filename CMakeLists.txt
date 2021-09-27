@@ -71,8 +71,6 @@ add_library(${PROJECT_NAME} STATIC
   src/connection.cc
   src/common.h
   src/common.cc
-  src/database.h
-  src/fragment_collector.cc
   src/host.h
   src/host.cc
   src/k_bucket.h
