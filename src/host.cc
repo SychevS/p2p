@@ -280,8 +280,6 @@ void Host::Connect(const NodeEntrance& peer) {
     return;
   }
 
-  AddToPendingConn(peer.id);
-
   auto new_conn = Connection::Create(static_cast<ConnectionOwner&>(*this), io_);
   new_conn->Connect(Connection::Endpoint(peer.address, peer.tcp_port),
                     FormPacket(Packet::Type::kRegistration,
@@ -450,12 +448,11 @@ void Host::RemoveFromPendingConn(const NodeId& id) {
 
 bool Host::HasPendingConnection(const NodeId& id) {
   Guard g(pend_conn_mux_);
-  return pending_connections_.find(id) != pending_connections_.end();
-}
-
-void Host::AddToPendingConn(const NodeId& id) {
-  Guard g(pend_conn_mux_);
+  if (pending_connections_.find(id) != pending_connections_.end()) {
+    return true;
+  }
   pending_connections_.insert(id);
+  return false;
 }
 
 void Host::DropConnections(const NodeId& id) {
