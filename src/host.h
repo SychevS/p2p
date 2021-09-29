@@ -76,7 +76,6 @@ class Host : public RoutingTableEventHandler, public BanManOwner, public Connect
 
   void RemoveFromPendingConn(const NodeId&);
   bool HasPendingConnection(const NodeId&);
-  void AddToPendingConn(const NodeId&);
 
   void AddToSendQueue(const NodeId&, Packet&&);
   void ClearSendQueue(const NodeId&);
