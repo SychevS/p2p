@@ -87,7 +87,7 @@ void RoutingTable::Pinger::SendPing(const NodeEntrance& target, KBucket& bucket,
                           routing_table_.NotifyHost(target, RoutingTableEventType::kNodeRemoved);
                         }
 
-                        if (replacer) {
+                        if (replacer && !bucket.Exists(replacer->id)) {
                           bucket.AddNode(*replacer);
                           routing_table_.total_nodes_++;
                           routing_table_.NotifyHost(*replacer, RoutingTableEventType::kNodeAdded);
