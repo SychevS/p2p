@@ -11,7 +11,3 @@ set(UPNPC_NO_INSTALL TRUE CACHE BOOL "Disable installation" FORCE)
 add_subdirectory(miniupnp/miniupnpc)
 
 add_subdirectory(easyloggingpp)
-
-set(LEVELDB_BUILD_TESTS OFF CACHE BOOL "Build LevelDB's unit tests" FORCE)
-set(LEVELDB_BUILD_BENCHMARKS OFF CACHE BOOL "Build LevelDB's benchmarks" FORCE)
-add_subdirectory(leveldb)

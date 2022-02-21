@@ -106,7 +106,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} bitcoin_utils easylogging libminiupnpc-static leveldb
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} bitcoin_utils easylogging libminiupnpc-static
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(NOT MSVC)
@@ -117,7 +117,7 @@ endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER include/p2p_network.h)
 
-install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static leveldb
+install(TARGETS ${PROJECT_NAME} bitcoin_utils easylogging libminiupnpc-static
         LIBRARY
           DESTINATION lib
         ARCHIVE
